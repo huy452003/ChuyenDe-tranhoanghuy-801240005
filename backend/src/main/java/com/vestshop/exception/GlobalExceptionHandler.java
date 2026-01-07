@@ -35,5 +35,29 @@ public class GlobalExceptionHandler {
         
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
     }
+
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException ex) {
+        Map<String, Object> error = new HashMap<>();
+        error.put("message", ex.getMessage());
+        error.put("error", "RuntimeException");
+        
+        // Log error for debugging
+        ex.printStackTrace();
+        
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
+        Map<String, Object> error = new HashMap<>();
+        error.put("message", ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred");
+        error.put("error", ex.getClass().getSimpleName());
+        
+        // Log error for debugging
+        ex.printStackTrace();
+        
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    }
 }
 
