@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans text-gray-900 bg-white;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-vest-dark text-white px-6 py-3 rounded-lg font-medium hover:bg-vest-navy transition-colors duration-300;
+  }
+  
+  .btn-secondary {
+    @apply bg-vest-gold text-vest-dark px-6 py-3 rounded-lg font-medium hover:bg-yellow-600 transition-colors duration-300;
+  }
+  
+  .btn-outline {
+    @apply border-2 border-vest-dark text-vest-dark px-6 py-3 rounded-lg font-medium hover:bg-vest-dark hover:text-white transition-colors duration-300;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-vest-gold focus:border-transparent;
+  }
+  
+  .container-custom {
+    @apply container mx-auto px-4 sm:px-6 lg:px-8;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d4af37;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #b8941f;
+}
+

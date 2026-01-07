@@ -1,0 +1,5 @@
+cd frontend
+npm run build
+
+Remove-Item ..\backend\src\main\resources\static -Recurse -Force
+robocopy dist ..\backend\src\main\resources\static /E
