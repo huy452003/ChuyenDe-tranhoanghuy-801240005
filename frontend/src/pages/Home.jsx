@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import { productAPI } from '../services/api'
 
 function Home() {
   const [featuredProducts, setFeaturedProducts] = useState([])
@@ -10,8 +11,8 @@ function Home() {
 
   const loadFeaturedProducts = async () => {
     try {
-      const response = await fetch('http://localhost:9090/api/products');
-      const data = await response.json();
+      const response = await productAPI.getAll();
+      const data = response.data || [];
       // Lấy 4 sản phẩm đầu tiên làm featured
       setFeaturedProducts(data.slice(0, 4));
     } catch (error) {

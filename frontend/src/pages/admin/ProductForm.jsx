@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { adminProductAPI } from '../../services/api'
 
 function ProductForm() {
   const navigate = useNavigate()
@@ -26,9 +27,9 @@ function ProductForm() {
 
   const loadProductData = async () => {
     try {
-      const response = await fetch(`http://localhost:9090/api/products/${id}`);
-      if (response.ok) {
-        const product = await response.json();
+      const response = await productAPI.getById(id);
+      const product = response.data;
+      if (product) {
         setFormData({
           name: product.name || '',
           price: product.price?.toString() || '',
@@ -95,33 +96,16 @@ function ProductForm() {
       
       console.log('Sending product data:', productData); // Debug
 
-      let response;
       if (isEditMode) {
         // Update existing product
-        response = await fetch(`http://localhost:9090/api/admin/products/${id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(productData)
-        });
+        await adminProductAPI.update(id, productData);
       } else {
         // Create new product
-        response = await fetch('http://localhost:9090/api/admin/products', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(productData)
-        });
+        await adminProductAPI.create(productData);
       }
 
-      if (response.ok) {
-        alert(isEditMode ? 'Đã cập nhật sản phẩm!' : 'Đã thêm sản phẩm mới!');
-        navigate('/admin/products');
-      } else {
-        alert('Có lỗi xảy ra! Vui lòng thử lại.');
-      }
+      alert(isEditMode ? 'Đã cập nhật sản phẩm!' : 'Đã thêm sản phẩm mới!');
+      navigate('/admin/products');
     } catch (error) {
       console.error('Error saving product:', error);
       alert('Có lỗi xảy ra! Vui lòng thử lại.');

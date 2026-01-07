@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
+import { productAPI } from '../services/api'
 
 function ProductDetail() {
   const { id } = useParams()
@@ -18,9 +19,9 @@ function ProductDetail() {
 
   const loadProduct = async () => {
     try {
-      const response = await fetch(`http://localhost:9090/api/products/${id}`);
-      if (response.ok) {
-        const data = await response.json();
+      const response = await productAPI.getById(id);
+      if (response.data) {
+        const data = response.data;
         console.log('Product loaded:', data); // Debug
         console.log('Stock:', data.stock); // Debug
         setProduct(data);
