@@ -31,6 +31,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/register", "/api/auth/login", "/auth/register", "/auth/login", "/public/**", "/api/public/**", "/auth/internal/**", "/api/auth/internal/**").permitAll()
                 .requestMatchers("/api/products/**", "/api/products").permitAll() // Cho phép xem sản phẩm mà không cần đăng nhập
+                .requestMatchers("/api/health", "/health").permitAll() // Health check endpoint
                 .requestMatchers("/", "/index.html", "/assets/**", "/error", "/favicon.ico").permitAll() // Cho phép truy cập static files và error page
                 .requestMatchers(request -> {
                     String method = request.getMethod();
