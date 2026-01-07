@@ -33,6 +33,11 @@ public class SecurityConfig {
                 .requestMatchers("/api/products/**", "/api/products").permitAll() // Cho phép xem sản phẩm mà không cần đăng nhập
                 .requestMatchers("/", "/index.html", "/assets/**", "/error", "/favicon.ico").permitAll() // Cho phép truy cập static files và error page
                 .requestMatchers(request -> {
+                    String method = request.getMethod();
+                    // Cho phép OPTIONS request (CORS preflight)
+                    if ("OPTIONS".equalsIgnoreCase(method)) {
+                        return true;
+                    }
                     String path = request.getRequestURI();
                     // Cho phép các file static (HTML, JS, CSS, images, fonts)
                     return path.endsWith(".html") || 
