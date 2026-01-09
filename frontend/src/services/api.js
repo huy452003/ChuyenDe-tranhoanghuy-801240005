@@ -81,6 +81,7 @@ export const orderAPI = {
 // Admin Products API
 export const adminProductAPI = {
   getAll: () => api.get('/admin/products'),
+  getById: (id) => api.get(`/admin/products/${id}`),
   create: (productData) => api.post('/admin/products', productData),
   update: (id, productData) => api.put(`/admin/products/${id}`, productData),
   delete: (id) => api.delete(`/admin/products/${id}`),
@@ -127,6 +128,23 @@ export const authAPI = {
   getCurrentUser: () => api.get('/auth/me'),
   adminUpdateUser: (userId, updateData) => api.put(`/auth/users/${userId}/admin-update`, updateData),
   userUpdateSelf: (userId, updateData) => api.put(`/auth/users/${userId}/user-update`, updateData),
+};
+
+// Reviews API
+export const reviewAPI = {
+  getProductReviews: (productId) => api.get(`/products/${productId}/reviews`),
+  createReview: (productId, reviewData) => api.post(`/products/${productId}/reviews`, reviewData),
+  updateReview: (productId, reviewId, reviewData) => api.put(`/products/${productId}/reviews/${reviewId}`, reviewData),
+  deleteReview: (productId, reviewId) => api.delete(`/products/${productId}/reviews/${reviewId}`),
+  checkUserReviewed: (productId) => api.get(`/products/${productId}/reviews/check`),
+};
+
+// Admin Reviews API
+export const adminReviewAPI = {
+  getAll: (params) => api.get('/admin/reviews', { params }),
+  getById: (id) => api.get(`/admin/reviews/${id}`),
+  updateStatus: (id, status) => api.patch(`/admin/reviews/${id}/status?status=${status}`),
+  delete: (id) => api.delete(`/admin/reviews/${id}`),
 };
 
 export default api;

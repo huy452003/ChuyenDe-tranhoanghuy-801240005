@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
-import { productAPI } from '../services/api'
+import { productAPI, reviewAPI } from '../services/api'
+import RatingDisplay from '../components/RatingDisplay'
 
 function ProductDetail() {
   const { id } = useParams()
@@ -10,11 +11,14 @@ function ProductDetail() {
   const [selectedSize, setSelectedSize] = useState('M')
   const [quantity, setQuantity] = useState(1)
   const [showNotification, setShowNotification] = useState(false)
+  const [reviews, setReviews] = useState([])
+  const [loadingReviews, setLoadingReviews] = useState(false)
 
   const sizes = ['S', 'M', 'L', 'XL', 'XXL']
 
   useEffect(() => {
     loadProduct();
+    loadReviews();
   }, [id]);
 
   const loadProduct = async () => {
@@ -34,6 +38,21 @@ function ProductDetail() {
       loadMockProduct();
     }
   };
+
+  const loadReviews = async () => {
+    if (!id) return;
+    setLoadingReviews(true);
+    try {
+      const response = await reviewAPI.getProductReviews(id);
+      setReviews(response.data || []);
+    } catch (error) {
+      console.error('Error loading reviews:', error);
+      setReviews([]);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
 
   const loadMockProduct = () => {
     const mockProduct = {
@@ -136,6 +155,17 @@ function ProductDetail() {
             <span className="text-vest-gold font-medium">{product.category}</span>
             <h1 className="text-4xl font-serif font-bold mt-2 mb-4">{product.name}</h1>
             
+            {/* Rating Display */}
+            {product.averageRating !== undefined && (
+              <div className="mb-4">
+                <RatingDisplay 
+                  rating={product.averageRating || 0} 
+                  reviewCount={product.reviewCount || 0}
+                  completedOrderCount={product.completedOrderCount || 0}
+                />
+              </div>
+            )}
+            
             {/* Giá */}
             <div className="mb-6">
               {product.salePrice ? (
@@ -235,6 +265,52 @@ function ProductDetail() {
               </ul>
             </div>
           </div>
+        </div>
+
+        {/* Reviews Section */}
+        <div className="mt-16 border-t pt-8">
+          <h2 className="text-2xl font-serif font-bold mb-6">Đánh giá sản phẩm</h2>
+
+          {/* Reviews List */}
+          {loadingReviews ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-vest-gold mx-auto"></div>
+            </div>
+          ) : reviews.length > 0 ? (
+            <div className="space-y-6">
+              {reviews.map((review) => (
+                <div key={review.id} className="border-b pb-6 last:border-b-0">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-semibold">{review.userFullname || review.username}</span>
+                        <div className="flex">
+                          {[...Array(5)].map((_, i) => (
+                            <span
+                              key={i}
+                              className={`text-lg ${
+                                i < review.rating ? 'text-yellow-400' : 'text-gray-300'
+                              }`}
+                            >
+                              ★
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        {new Date(review.createdAt).toLocaleDateString('vi-VN')}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-gray-700 mt-2">{review.comment}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-center py-8">
+              Chưa có đánh giá nào cho sản phẩm này.
+            </p>
+          )}
         </div>
 
         {/* Notification */}

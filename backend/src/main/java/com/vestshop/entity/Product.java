@@ -58,7 +58,7 @@ public class Product {
 
     @ElementCollection
     @CollectionTable(name = "product_details", joinColumns = @JoinColumn(name = "product_id"))
-    @Column(name = "detail")
+    @Column(name = "detail", columnDefinition = "TEXT")
     private List<String> details = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)

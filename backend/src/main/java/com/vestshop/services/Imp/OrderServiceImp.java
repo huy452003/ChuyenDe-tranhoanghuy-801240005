@@ -8,6 +8,7 @@ import com.vestshop.entity.OrderItem;
 import com.vestshop.entity.Product;
 import com.vestshop.enums.OrderStatus;
 import com.vestshop.enums.PaymentMethod;
+import com.vestshop.enums.ProductStatus;
 import com.vestshop.repository.OrderRepository;
 import com.vestshop.repository.ProductRepository;
 
@@ -83,7 +84,14 @@ public class OrderServiceImp implements OrderService {
                     .build();
                 
                 // Giảm số lượng tồn kho
-                product.setStock(product.getStock() - itemModel.getQuantity());
+                int newStock = product.getStock() - itemModel.getQuantity();
+                product.setStock(newStock);
+                
+                // Tự động chuyển trạng thái dựa trên số tồn kho
+                if (newStock <= 0) {
+                    product.setStatus(ProductStatus.OUT_OF_STOCK);
+                }
+                
                 productRepository.save(product);
                 
                 return orderItem;
@@ -98,23 +106,36 @@ public class OrderServiceImp implements OrderService {
     }
     
     @Override
+    @Transactional(readOnly = true)
     public List<OrderModel> getAllOrders() {
         List<Order> orders = orderRepository.findAll();
+        // Force load items to avoid lazy loading issues
+        orders.forEach(order -> {
+            if (order.getItems() != null) {
+                order.getItems().size(); // Force initialization
+            }
+        });
         return orders.stream()
                 .map(this::convertToModel)
                 .collect(Collectors.toList());
     }
     
     @Override
+    @Transactional(readOnly = true)
     public OrderModel getOrderById(Long id) {
         Order order = orderRepository.findById(id).orElse(null);
         if (order == null) {
             return null;
         }
+        // Force load items to avoid lazy loading issues
+        if (order.getItems() != null) {
+            order.getItems().size(); // Force initialization
+        }
         return convertToModel(order);
     }
     
     @Override
+    @Transactional(readOnly = true)
     public List<OrderModel> getOrdersByEmail(String email) {
         if (email == null || email.trim().isEmpty()) {
             return new ArrayList<>();
@@ -135,14 +156,28 @@ public class OrderServiceImp implements OrderService {
             System.out.println("DEBUG OrderService: Found " + orders.size() + " orders with original email");
         }
         
+        // Force load items to avoid lazy loading issues
+        orders.forEach(order -> {
+            if (order.getItems() != null) {
+                order.getItems().size(); // Force initialization
+            }
+        });
+        
         return orders.stream()
                 .map(this::convertToModel)
                 .collect(Collectors.toList());
     }
     
     @Override
+    @Transactional(readOnly = true)
     public List<OrderModel> getOrdersByStatus(OrderStatus status) {
         List<Order> orders = orderRepository.findByStatus(status);
+        // Force load items to avoid lazy loading issues
+        orders.forEach(order -> {
+            if (order.getItems() != null) {
+                order.getItems().size(); // Force initialization
+            }
+        });
         return orders.stream()
                 .map(this::convertToModel)
                 .collect(Collectors.toList());
@@ -167,7 +202,14 @@ public class OrderServiceImp implements OrderService {
                 for (OrderItem item : order.getItems()) {
                     Product product = item.getProduct();
                     if (product != null) {
-                        product.setStock(product.getStock() + item.getQuantity());
+                        int newStock = product.getStock() + item.getQuantity();
+                        product.setStock(newStock);
+                        
+                        // Nếu đang hết hàng và có stock mới > 0, chuyển về ACTIVE
+                        if (product.getStatus() == ProductStatus.OUT_OF_STOCK && newStock > 0) {
+                            product.setStatus(ProductStatus.ACTIVE);
+                        }
+                        
                         productRepository.save(product);
                     }
                 }
@@ -188,7 +230,14 @@ public class OrderServiceImp implements OrderService {
                             throw new RuntimeException("Insufficient stock for product: " + product.getName() + 
                                     ". Available: " + product.getStock() + ", Required: " + item.getQuantity());
                         }
-                        product.setStock(product.getStock() - item.getQuantity());
+                        int newStock = product.getStock() - item.getQuantity();
+                        product.setStock(newStock);
+                        
+                        // Tự động chuyển trạng thái dựa trên số tồn kho
+                        if (newStock <= 0) {
+                            product.setStatus(ProductStatus.OUT_OF_STOCK);
+                        }
+                        
                         productRepository.save(product);
                     }
                 }
@@ -241,10 +290,18 @@ public class OrderServiceImp implements OrderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<OrderModel> filterOrders(String fullName, String email, String phone, OrderStatus status,
                                           PaymentMethod paymentMethod, LocalDate createdAtFrom, LocalDate createdAtTo,
                                           Long totalAmountFrom, Long totalAmountTo) {
-        return orderRepository.findAll().stream()
+        List<Order> allOrders = orderRepository.findAll();
+        // Force load items to avoid lazy loading issues
+        allOrders.forEach(order -> {
+            if (order.getItems() != null) {
+                order.getItems().size(); // Force initialization
+            }
+        });
+        return allOrders.stream()
                 .filter(order -> {
                     // Filter theo fullName
                     if (fullName != null && !fullName.trim().isEmpty()) {
@@ -322,6 +379,11 @@ public class OrderServiceImp implements OrderService {
         if (order.getItems() != null && !order.getItems().isEmpty()) {
             List<OrderItemModel> itemModels = order.getItems().stream().map(item -> {
                 OrderItemModel itemModel = modelMapper.map(item, OrderItemModel.class);
+                // Set productId and productName from product entity
+                if (item.getProduct() != null) {
+                    itemModel.setProductId(item.getProduct().getId());
+                    itemModel.setProductName(item.getProduct().getName());
+                }
                 return itemModel;
             }).collect(Collectors.toList());
             

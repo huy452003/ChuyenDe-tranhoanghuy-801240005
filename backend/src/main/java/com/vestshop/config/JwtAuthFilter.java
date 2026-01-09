@@ -1,8 +1,6 @@
 package com.vestshop.config;
 
 import com.vestshop.services.JwtService;
-import org.springframework.web.servlet.HandlerExceptionResolver;
-import org.springframework.beans.factory.annotation.Qualifier;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,10 +24,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Autowired
     UserDetailsService userDetailsService;
 
-    @Autowired
-    @Qualifier("handlerExceptionResolver")
-    private HandlerExceptionResolver handlerExceptionResolver;
-
     @Override
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,
@@ -39,10 +33,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("Authorization");
         String jwt;
         String username;
+        String method = request.getMethod();
+        String uri = request.getRequestURI();
                 
         // nếu là public endpoint thì skip jwt validation,
         // vì JwtAuthFilter chạy trước nên xử lý thêm ở đây sẽ hiệu quả hơn
-        if (isPublicEndpoint(request.getRequestURI())) {
+        if (isPublicEndpoint(uri, method)) {
              filterChain.doFilter(request, response);
              return;
         }
@@ -69,9 +65,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     // set authentication vào security context
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 } else {
-                    RuntimeException exception = new RuntimeException("Invalid JWT token");
-
-                    handlerExceptionResolver.resolveException(request, response, null, exception);
+                    // Token không hợp lệ - trả về 401 Unauthorized
+                    SecurityContextHolder.clearContext();
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"message\":\"Invalid or expired JWT token\",\"error\":\"Unauthorized\"}");
                     return;
                 }
             }
@@ -79,15 +77,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             // Clear security context nếu có lỗi
             SecurityContextHolder.clearContext();
             
-            RuntimeException exception = new RuntimeException("Token may be invalid, expired, or malformed");
-            handlerExceptionResolver.resolveException(request, response, null, exception);
+            // Token không hợp lệ hoặc đã hết hạn - trả về 401 Unauthorized
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"message\":\"Token may be invalid, expired, or malformed\",\"error\":\"Unauthorized\"}");
             return;
         }
         filterChain.doFilter(request, response);
     }
 
     // Kiểm tra xem endpoint có phải là public không
-    private boolean isPublicEndpoint(String uri) {
+    private boolean isPublicEndpoint(String uri, String method) {
         // Check với và không có /api prefix
         if (uri.equals("/auth/register") || 
             uri.equals("/auth/login") ||
@@ -120,9 +120,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return true;
         }
         
-        // Skip API endpoints that don't need authentication
-        if (uri.startsWith("/api/products")) {
-            return true;
+        // Chỉ cho phép GET products và GET reviews công khai
+        // POST/PUT/DELETE reviews cần authentication
+        if ("GET".equalsIgnoreCase(method)) {
+            if (uri.startsWith("/api/products") && !uri.contains("/reviews")) {
+                return true; // GET /api/products và GET /api/products/{id}
+            }
+            if (uri.startsWith("/api/products") && uri.contains("/reviews") && !uri.endsWith("/check")) {
+                return true; // GET /api/products/{id}/reviews
+            }
         }
         
         return false;

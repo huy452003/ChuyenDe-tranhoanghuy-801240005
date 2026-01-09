@@ -18,6 +18,7 @@ import OrderList from './pages/admin/OrderList'
 import UserList from './pages/admin/UserList'
 import AdminProfile from './pages/admin/AdminProfile'
 import ContactMessages from './pages/admin/ContactMessages'
+import ReviewList from './pages/admin/ReviewList'
 
 // Protected Route
 import ProtectedRoute from './components/ProtectedRoute'
@@ -64,6 +65,7 @@ function App() {
         <Route path="orders" element={<OrderList />} />
         <Route path="users" element={<UserList />} />
         <Route path="contact-messages" element={<ContactMessages />} />
+        <Route path="reviews" element={<ReviewList />} />
         <Route path="profile" element={<AdminProfile />} />
       </Route>
     </Routes>

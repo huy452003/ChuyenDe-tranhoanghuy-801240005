@@ -27,23 +27,38 @@ function ProductForm() {
 
   const loadProductData = async () => {
     try {
-      const response = await productAPI.getById(id);
+      if (!id) {
+        console.error('Product ID is missing');
+        return;
+      }
+      const response = await adminProductAPI.getById(id);
       const product = response.data;
+      console.log('Loaded product data:', product); // Debug log
       if (product) {
         setFormData({
           name: product.name || '',
           price: product.price?.toString() || '',
-          salePrice: product.salePrice?.toString() || '',
+          salePrice: product.salePrice ? product.salePrice.toString() : '',
           category: product.category || 'Classic',
           description: product.description || '',
-          stock: product.stock?.toString() || '',
-          images: product.images && product.images.length > 0 ? product.images : [''],
-          details: product.details && product.details.length > 0 ? product.details : [''],
+          stock: product.stock?.toString() || '0',
+          images: product.images && Array.isArray(product.images) && product.images.length > 0 
+            ? product.images.filter(img => img && img.trim() !== '') 
+            : [''],
+          details: product.details && Array.isArray(product.details) && product.details.length > 0 
+            ? product.details.filter(detail => detail && detail.trim() !== '') 
+            : [''],
           status: product.status || 'ACTIVE' // Đảm bảo uppercase
         });
+      } else {
+        console.error('Product not found');
+        alert('Không tìm thấy sản phẩm');
+        navigate('/admin/products');
       }
     } catch (error) {
       console.error('Error loading product:', error);
+      alert('Không thể tải thông tin sản phẩm. Vui lòng thử lại.');
+      navigate('/admin/products');
     }
   };
 

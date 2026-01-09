@@ -48,5 +48,10 @@ public class ProductModel {
     private ProductStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    
+    // Rating information (computed from reviews)
+    private Double averageRating; // Rating trung bình (0.0 - 5.0)
+    private Long reviewCount; // Số lượng đánh giá
+    private Long completedOrderCount; // Số lượng đơn hàng đã thành công (lượt mua)
 }
 

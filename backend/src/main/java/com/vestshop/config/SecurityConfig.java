@@ -30,7 +30,18 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/register", "/api/auth/login", "/auth/register", "/auth/login", "/public/**", "/api/public/**", "/auth/internal/**", "/api/auth/internal/**").permitAll()
-                .requestMatchers("/api/products/**", "/api/products").permitAll() // Cho phép xem sản phẩm mà không cần đăng nhập
+                .requestMatchers("/api/products").permitAll() // Cho phép xem danh sách sản phẩm
+                .requestMatchers(request -> {
+                    // Cho phép GET products và GET reviews công khai
+                    String method = request.getMethod();
+                    String path = request.getRequestURI();
+                    if ("GET".equalsIgnoreCase(method)) {
+                        if (path.startsWith("/api/products/") && !path.contains("/reviews/check")) {
+                            return true; // GET /api/products/{id} và GET /api/products/{id}/reviews
+                        }
+                    }
+                    return false;
+                }).permitAll()
                 .requestMatchers("/api/health", "/health").permitAll() // Health check endpoint
                 .requestMatchers("/", "/index.html", "/assets/**", "/error", "/favicon.ico").permitAll() // Cho phép truy cập static files và error page
                 .requestMatchers(request -> {

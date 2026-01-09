@@ -28,6 +28,17 @@ public class AdminProductController {
         return ResponseEntity.ok(products);
     }
 
+    // Lấy sản phẩm theo ID (cho admin)
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/{id}")
+    public ResponseEntity<ProductModel> getProductById(@PathVariable Long id) {
+        ProductModel product = productService.getProductById(id);
+        if (product == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(product);
+    }
+
     // Tạo sản phẩm mới
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping

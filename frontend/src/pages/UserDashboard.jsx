@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { authAPI, orderAPI } from '../services/api'
+import { authAPI, orderAPI, reviewAPI } from '../services/api'
 import { provinces, getDistricts, getWards } from '../data/addressData'
 import { calculateAge } from '../utils/ageUtils'
+import ReviewForm from '../components/ReviewForm'
 
 function UserDashboard() {
   const navigate = useNavigate()
@@ -28,6 +29,8 @@ function UserDashboard() {
   const [availableWards, setAvailableWards] = useState([])
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [reviewingProduct, setReviewingProduct] = useState(null) // { productId, productName }
+  const [productReviewedStatus, setProductReviewedStatus] = useState({}) // { productId: boolean }
 
   useEffect(() => {
     // ProtectedRoute already handles authentication check
@@ -82,10 +85,35 @@ function UserDashboard() {
   }
 
   const loadOrders = async () => {
+    // Also check review status for completed orders
+    const checkReviewStatuses = async (orders) => {
+      const statusMap = {};
+      for (const order of orders) {
+        if (order.status === 'COMPLETED' && order.items) {
+          for (const item of order.items) {
+            if (item.productId && !statusMap[item.productId]) {
+              try {
+                const response = await reviewAPI.checkUserReviewed(item.productId);
+                statusMap[item.productId] = response.data?.hasReviewed || false;
+              } catch (error) {
+                console.error(`Error checking review for product ${item.productId}:`, error);
+                statusMap[item.productId] = false;
+              }
+            }
+          }
+        }
+      }
+      setProductReviewedStatus(statusMap);
+    };
+
     try {
       // Lấy đơn hàng của user hiện tại từ token (không cần truyền email)
       const response = await orderAPI.getMyOrders()
-      setOrders(response.data || [])
+      const ordersData = response.data || []
+      setOrders(ordersData)
+      
+      // Kiểm tra trạng thái đã đánh giá cho các sản phẩm trong đơn hàng đã hoàn thành
+      await checkReviewStatuses(ordersData)
     } catch (error) {
       console.error('Error loading orders:', error)
       setOrders([])
@@ -730,13 +758,84 @@ function UserDashboard() {
                       {order.items && order.items.length > 0 && (
                         <div className="mt-4 border-t pt-4">
                           <p className="font-medium mb-2">Sản phẩm:</p>
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             {order.items.map((item, index) => (
-                              <div key={index} className="flex items-center justify-between text-sm">
-                                <span>{item.productName} x {item.quantity}</span>
-                                <span className="font-medium">
-                                  {new Intl.NumberFormat('vi-VN').format(item.price * item.quantity)}đ
-                                </span>
+                              <div key={index} className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span>{item.productName} x {item.quantity}</span>
+                                    <span className="font-medium">
+                                      {new Intl.NumberFormat('vi-VN').format(item.price * item.quantity)}đ
+                                    </span>
+                                  </div>
+                                  {order.status === 'COMPLETED' && (
+                                    <div className="mt-3 pt-3 border-t border-gray-200">
+                                      {reviewingProduct?.productId === item.productId ? (
+                                        <div>
+                                          <p className="text-sm font-medium text-gray-700 mb-2">
+                                            Đánh giá: <span className="font-semibold">{item.productName}</span>
+                                          </p>
+                                          <ReviewForm
+                                            productId={item.productId}
+                                            onReviewSubmitted={() => {
+                                              setReviewingProduct(null);
+                                              setProductReviewedStatus(prev => ({
+                                                ...prev,
+                                                [item.productId]: true
+                                              }));
+                                            }}
+                                            onCancel={() => setReviewingProduct(null)}
+                                          />
+                                        </div>
+                                      ) : (
+                                        <button
+                                          onClick={async () => {
+                                            // Check if user already reviewed
+                                            try {
+                                              const response = await reviewAPI.checkUserReviewed(item.productId);
+                                              if (response.data?.hasReviewed) {
+                                                setProductReviewedStatus(prev => ({
+                                                  ...prev,
+                                                  [item.productId]: true
+                                                }));
+                                                alert('Bạn đã đánh giá sản phẩm này rồi!');
+                                              } else {
+                                                setReviewingProduct({
+                                                  productId: item.productId,
+                                                  productName: item.productName
+                                                });
+                                              }
+                                            } catch (error) {
+                                              console.error('Error checking review:', error);
+                                              setReviewingProduct({
+                                                productId: item.productId,
+                                                productName: item.productName
+                                              });
+                                            }
+                                          }}
+                                          disabled={productReviewedStatus[item.productId]}
+                                          className="flex items-center gap-2 px-4 py-2 bg-vest-gold text-vest-dark rounded-lg hover:bg-yellow-500 transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-sm font-medium"
+                                        >
+                                          {productReviewedStatus[item.productId] ? (
+                                            <>
+                                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                              </svg>
+                                              <span>Đã đánh giá</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                                              </svg>
+                                              <span>Viết đánh giá</span>
+                                            </>
+                                          )}
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             ))}
                           </div>
