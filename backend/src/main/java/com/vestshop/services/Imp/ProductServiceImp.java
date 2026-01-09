@@ -122,15 +122,9 @@ public class ProductServiceImp implements ProductService{
                 model.setAverageRating(averageRating != null ? averageRating : 0.0);
                 model.setReviewCount(reviewCount != null ? reviewCount : 0L);
                 
-                // Tính completedOrderCount (có thể chậm nếu có nhiều orders)
-                try {
-                    Long completedOrderCount = reviewService.getCompletedOrderCount(product.getId());
-                    model.setCompletedOrderCount(completedOrderCount != null ? completedOrderCount : 0L);
-                } catch (Exception e) {
-                    // Nếu có lỗi khi tính completedOrderCount, set 0
-                    System.err.println("Error calculating completedOrderCount for product " + product.getId() + ": " + e.getMessage());
-                    model.setCompletedOrderCount(0L);
-                }
+                // Tạm thời disable completedOrderCount để tăng tốc độ load (có thể tính sau nếu cần)
+                // TODO: Tối ưu bằng cách tạo query trực tiếp trong database thay vì load tất cả orders
+                model.setCompletedOrderCount(0L);
             } catch (Exception e) {
                 // Nếu có lỗi, set giá trị mặc định
                 System.err.println("Error calculating rating for product " + product.getId() + ": " + e.getMessage());
