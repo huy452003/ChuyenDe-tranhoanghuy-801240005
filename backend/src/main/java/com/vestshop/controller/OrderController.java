@@ -42,7 +42,7 @@ public class OrderController {
     // Lấy thông tin đơn hàng theo ID
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<OrderModel> getOrderById(@PathVariable Long id) {
+    public ResponseEntity<OrderModel> getOrderById(@PathVariable Integer id) {
         OrderModel order = orderService.getOrderById(id);
         if (order == null) {
             return ResponseEntity.notFound().build();

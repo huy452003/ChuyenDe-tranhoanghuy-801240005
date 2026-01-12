@@ -21,26 +21,22 @@ public interface UserRepository extends JpaRepository<User, Integer>{
     Optional<User> findByPhone(String phone);
     // Tìm user theo userId
     Optional<User> findByUserId(Integer userId);
-    
     // Kiểm tra xem user có tồn tại theo username
     boolean existsByUsername(String username);
     // Kiểm tra xem user có tồn tại theo email
     boolean existsByEmail(String email);
     // Kiểm tra xem user có tồn tại theo phone
     boolean existsByPhone(String phone);
-    
     // Kiểm tra xem user có tồn tại theo username và userId khác
     boolean existsByUsernameAndUserIdNot(String username, Integer userId);
     // Kiểm tra xem user có tồn tại theo email và userId khác
     boolean existsByEmailAndUserIdNot(String email, Integer userId);
     // Kiểm tra xem user có tồn tại theo phone và userId khác
     boolean existsByPhoneAndUserIdNot(String phone, Integer userId);
-    
     // Kiểm tra xem user có tồn tại theo userId
     boolean existsByUserId(Integer userId);
     // Đếm số lượng user theo role
-    long countByRole(Role role);
-    
+    Integer countByRole(Role role);
     // Tìm các user với status cụ thể
     List<User> findByStatus(UserStatus status);
     

@@ -27,7 +27,7 @@ public class AdminOrderController {
     // Lấy danh sách tất cả đơn hàng với filter chi tiết
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
-    public ResponseEntity<List<OrderModel>> getAllOrders(
+    public ResponseEntity<?> getAllOrders(
             @RequestParam(required = false) OrderStatus status,
             @RequestParam(required = false) String fullName,
             @RequestParam(required = false) String email,
@@ -35,9 +35,19 @@ public class AdminOrderController {
             @RequestParam(required = false) PaymentMethod paymentMethod,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtTo,
-            @RequestParam(required = false) Long totalAmountFrom,
-            @RequestParam(required = false) Long totalAmountTo
+            @RequestParam(required = false) Integer totalAmountFrom,
+            @RequestParam(required = false) Integer totalAmountTo,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size
     ) {
+        // Nếu có page hoặc size, trả về paginated response (chưa hỗ trợ filter với pagination)
+        if (page != null || size != null) {
+            int pageNum = page != null ? page : 0;
+            int pageSize = size != null ? size : 10;
+            return ResponseEntity.ok(orderService.getAllOrdersPaginated(pageNum, pageSize));
+        }
+        
+        // Nếu không có pagination, dùng logic filter như cũ
         List<OrderModel> orders;
         
         // Nếu có filter chi tiết, dùng filterOrders
@@ -60,7 +70,7 @@ public class AdminOrderController {
     @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<OrderModel> updateOrderStatus(
-            @PathVariable Long id,
+            @PathVariable Integer id,
             @RequestParam OrderStatus status
     ) {
         OrderModel updatedOrder = orderService.updateOrderStatus(id, status);
@@ -94,11 +104,11 @@ public class AdminOrderController {
     // Lấy doanh thu theo ngày
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/revenue/by-date")
-    public ResponseEntity<Map<String, Long>> getRevenueByDateRange(
+    public ResponseEntity<Map<String, Integer>> getRevenueByDateRange(
             @RequestParam LocalDate startDate,
             @RequestParam LocalDate endDate
     ) {
-        Map<String, Long> revenue = orderService.getRevenueByDateRange(startDate, endDate);
+        Map<String, Integer> revenue = orderService.getRevenueByDateRange(startDate, endDate);
         return ResponseEntity.ok(revenue);
     }
 }

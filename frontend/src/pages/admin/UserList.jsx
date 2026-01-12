@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { adminUserAPI, authAPI } from '../../services/api'
 import { calculateAge } from '../../utils/ageUtils'
 import { provinces, getDistricts, getWards } from '../../data/addressData'
+import Pagination from '../../components/Pagination'
 
 function UserList() {
   const [users, setUsers] = useState([])
@@ -30,16 +31,24 @@ function UserList() {
     city: '',
     district: '',
     ward: '',
+    password: '',
   })
+  const [showPasswordField, setShowPasswordField] = useState(false)
   const [availableDistricts, setAvailableDistricts] = useState([])
   const [availableWards, setAvailableWards] = useState([])
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalElements, setTotalElements] = useState(0)
+  const pageSize = 10
 
   useEffect(() => {
     loadUsers()
-  }, [searchTerm, filters])
+  }, [searchTerm, filters, currentPage])
 
   useEffect(() => {
     if (formData.city) {
@@ -70,30 +79,57 @@ function UserList() {
   const loadUsers = async () => {
     try {
       setLoading(true)
-      const params = {}
       
-      // Nếu có search term, dùng search
-      if (searchTerm.trim()) {
-        params.search = searchTerm.trim()
+      // Nếu có search hoặc filter, dùng getAll (không pagination)
+      // Nếu không có, dùng getAllPaginated
+      const hasFilters = searchTerm.trim() || 
+        filters.fullname.trim() || filters.email.trim() || filters.phone.trim() ||
+        filters.gender || filters.status || filters.birthFrom || filters.birthTo
+      
+      if (hasFilters) {
+        const params = {}
+        if (searchTerm.trim()) {
+          params.search = searchTerm.trim()
+        } else {
+          if (filters.fullname.trim()) params.fullname = filters.fullname.trim()
+          if (filters.email.trim()) params.email = filters.email.trim()
+          if (filters.phone.trim()) params.phone = filters.phone.trim()
+          if (filters.gender) params.gender = filters.gender
+          if (filters.status) params.status = filters.status
+          if (filters.birthFrom) params.birthFrom = filters.birthFrom
+          if (filters.birthTo) params.birthTo = filters.birthTo
+        }
+        
+        const response = await adminUserAPI.getAll(params)
+        setUsers(response.data || [])
+        setTotalPages(1)
+        setTotalElements(response.data?.length || 0)
       } else {
-        // Nếu không có search, dùng filter chi tiết
-        if (filters.fullname.trim()) params.fullname = filters.fullname.trim()
-        if (filters.email.trim()) params.email = filters.email.trim()
-        if (filters.phone.trim()) params.phone = filters.phone.trim()
-        if (filters.gender) params.gender = filters.gender
-        if (filters.status) params.status = filters.status
-        if (filters.birthFrom) params.birthFrom = filters.birthFrom
-        if (filters.birthTo) params.birthTo = filters.birthTo
+        // Use pagination when no filters
+        const response = await adminUserAPI.getAllPaginated(currentPage, pageSize)
+        if (response.data && response.data.content) {
+          setUsers(response.data.content || [])
+          setTotalPages(response.data.totalPages || 1)
+          setTotalElements(response.data.totalElements || 0)
+        } else {
+          setUsers(response.data || [])
+          setTotalPages(1)
+          setTotalElements(response.data?.length || 0)
+        }
       }
-      
-      const response = await adminUserAPI.getAll(params)
-      setUsers(response.data || [])
     } catch (error) {
       console.error('Error loading users:', error)
       setUsers([])
+      setTotalPages(1)
+      setTotalElements(0)
     } finally {
       setLoading(false)
     }
+  }
+  
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleFilterChange = (field, value) => {
@@ -114,6 +150,7 @@ function UserList() {
       birthFrom: '',
       birthTo: '',
     })
+    setCurrentPage(0) // Reset to first page when clearing filters
   }
 
   const openUpdateModal = (user) => {
@@ -168,7 +205,9 @@ function UserList() {
       city: '',
       district: '',
       ward: '',
+      password: '',
     })
+    setShowPasswordField(false)
     setError('')
     setSuccess('')
   }
@@ -245,6 +284,15 @@ function UserList() {
         address: fullAddress,
         role: formData.role,
         status: formData.status,
+      }
+
+      // Only include password if it's provided
+      if (formData.password && formData.password.trim() !== '') {
+        if (formData.password.length < 6) {
+          setError('Mật khẩu phải có ít nhất 6 ký tự')
+          return
+        }
+        updateData.password = formData.password
       }
 
       const response = await authAPI.adminUpdateUser(selectedUser.userId, updateData)
@@ -517,6 +565,25 @@ function UserList() {
           </>
         )}
       </div>
+      
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-8">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+          <div className="text-center mt-4 text-sm text-gray-500 bg-gray-50 rounded-lg py-3 px-4">
+            <span className="font-medium text-gray-700">
+              Hiển thị {currentPage * pageSize + 1} - {Math.min((currentPage + 1) * pageSize, totalElements)}
+            </span>
+            <span className="text-gray-500"> trong tổng số </span>
+            <span className="font-semibold text-vest-dark">{totalElements}</span>
+            <span className="text-gray-500"> người dùng</span>
+          </div>
+        </div>
+      )}
 
       {/* Update User Modal */}
       {showUpdateModal && selectedUser && (
@@ -753,6 +820,45 @@ function UserList() {
                           onChange={handleChange}
                         />
                       </div>
+                    </div>
+
+                    {/* Password field */}
+                    <div className="border-t pt-6 mt-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-700">Đổi mật khẩu</h3>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowPasswordField(!showPasswordField)
+                            if (!showPasswordField) {
+                              setFormData({ ...formData, password: '' })
+                            }
+                          }}
+                          className="text-sm text-vest-dark hover:text-vest-gold transition-colors"
+                        >
+                          {showPasswordField ? 'Ẩn' : 'Hiện'} trường mật khẩu
+                        </button>
+                      </div>
+                      {showPasswordField && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Mật khẩu mới
+                            <span className="text-gray-500 text-xs ml-2">(Để trống nếu không muốn đổi)</span>
+                          </label>
+                          <input
+                            name="password"
+                            type="password"
+                            minLength={6}
+                            placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-vest-gold focus:border-vest-gold transition-all"
+                            value={formData.password}
+                            onChange={handleChange}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Mật khẩu phải có ít nhất 6 ký tự. Để trống nếu không muốn thay đổi mật khẩu.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
 

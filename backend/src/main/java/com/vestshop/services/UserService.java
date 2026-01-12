@@ -4,6 +4,7 @@ import com.vestshop.enums.Gender;
 import com.vestshop.enums.Role;
 import com.vestshop.enums.UserStatus;
 import com.vestshop.models.UserModel;
+import com.vestshop.models.PageResponseModel;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -35,5 +36,8 @@ public interface UserService {
     
     // Cập nhật status của user (chỉ admin)
     UserModel updateUserStatus(Integer userId, UserStatus status);
+    
+    // Lấy danh sách users có phân trang (cho admin)
+    PageResponseModel<UserModel> getAllUsersPaginated(int page, int size);
 }
 

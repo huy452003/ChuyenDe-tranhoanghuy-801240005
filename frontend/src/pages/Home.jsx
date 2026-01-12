@@ -132,7 +132,14 @@ function Home() {
                   />
                 </div>
                 <div className="p-4">
-                  <span className="text-sm text-vest-gold font-medium">{product.category}</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-vest-gold font-medium">{product.category}</span>
+                    {(product.status === 'OUT_OF_STOCK' || product.stock === 0) && (
+                      <span className="text-xs text-red-600 font-semibold bg-red-50 px-2 py-0.5 rounded">
+                        Hết hàng
+                      </span>
+                    )}
+                  </div>
                   <h3 className="text-lg font-serif font-semibold mt-1 mb-2">{product.name}</h3>
                   <div className="flex items-center gap-2 flex-wrap">
                     {product.salePrice ? (

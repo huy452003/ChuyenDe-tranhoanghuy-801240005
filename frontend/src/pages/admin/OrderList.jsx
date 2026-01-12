@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { adminOrderAPI } from '../../services/api'
+import Pagination from '../../components/Pagination'
 
 function OrderList() {
   const [orders, setOrders] = useState([])
@@ -16,39 +17,102 @@ function OrderList() {
     totalAmountTo: '',
   })
   const [loading, setLoading] = useState(true)
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalElements, setTotalElements] = useState(0)
+  const pageSize = 10
+  
+  // Order counts by status (tổng số đơn hàng, không phụ thuộc pagination)
+  const [orderCounts, setOrderCounts] = useState({
+    all: 0,
+    pending: 0,
+    processing: 0,
+    completed: 0,
+    cancelled: 0
+  })
+
+  useEffect(() => {
+    loadOrderCounts()
+  }, [])
 
   useEffect(() => {
     loadOrders()
-  }, [filterStatus, filters])
+  }, [filterStatus, filters, currentPage])
+
+  const loadOrderCounts = async () => {
+    try {
+      const response = await adminOrderAPI.getOrderCounts()
+      if (response.data) {
+        setOrderCounts({
+          all: response.data.totalOrders || 0,
+          pending: response.data.pendingOrders || 0,
+          processing: response.data.processingOrders || 0,
+          completed: response.data.completedOrders || 0,
+          cancelled: response.data.cancelledOrders || 0
+        })
+      }
+    } catch (error) {
+      console.error('Error loading order counts:', error)
+    }
+  }
 
   const loadOrders = async () => {
     try {
       setLoading(true)
-      const params = {}
       
-      // Nếu có filter status từ button, thêm vào params
-      if (filterStatus !== 'all') {
-        params.status = filterStatus.toUpperCase()
+      // Nếu có filter, dùng getAll (không pagination)
+      // Nếu không có filter, dùng getAllPaginated
+      const hasFilters = filterStatus !== 'all' || 
+        filters.fullName.trim() || filters.email.trim() || filters.phone.trim() ||
+        filters.paymentMethod || filters.createdAtFrom || filters.createdAtTo ||
+        filters.totalAmountFrom || filters.totalAmountTo
+      
+      if (hasFilters) {
+        const params = {}
+        if (filterStatus !== 'all') {
+          params.status = filterStatus.toUpperCase()
+        }
+        if (filters.fullName.trim()) params.fullName = filters.fullName.trim()
+        if (filters.email.trim()) params.email = filters.email.trim()
+        if (filters.phone.trim()) params.phone = filters.phone.trim()
+        if (filters.paymentMethod) params.paymentMethod = filters.paymentMethod
+        if (filters.createdAtFrom) params.createdAtFrom = filters.createdAtFrom
+        if (filters.createdAtTo) params.createdAtTo = filters.createdAtTo
+        if (filters.totalAmountFrom) params.totalAmountFrom = parseInt(filters.totalAmountFrom.replace(/\./g, ''))
+        if (filters.totalAmountTo) params.totalAmountTo = parseInt(filters.totalAmountTo.replace(/\./g, ''))
+        
+        const response = await adminOrderAPI.getAll(params)
+        setOrders(response.data || [])
+        setTotalPages(1)
+        setTotalElements(response.data?.length || 0)
+      } else {
+        // Use pagination when no filters
+        const response = await adminOrderAPI.getAllPaginated(currentPage, pageSize)
+        if (response.data && response.data.content) {
+          setOrders(response.data.content || [])
+          setTotalPages(response.data.totalPages || 1)
+          setTotalElements(response.data.totalElements || 0)
+        } else {
+          setOrders(response.data || [])
+          setTotalPages(1)
+          setTotalElements(response.data?.length || 0)
+        }
       }
-      
-      // Thêm các filter chi tiết nếu có
-      if (filters.fullName.trim()) params.fullName = filters.fullName.trim()
-      if (filters.email.trim()) params.email = filters.email.trim()
-      if (filters.phone.trim()) params.phone = filters.phone.trim()
-      if (filters.paymentMethod) params.paymentMethod = filters.paymentMethod
-      if (filters.createdAtFrom) params.createdAtFrom = filters.createdAtFrom
-      if (filters.createdAtTo) params.createdAtTo = filters.createdAtTo
-      if (filters.totalAmountFrom) params.totalAmountFrom = parseInt(filters.totalAmountFrom.replace(/\./g, ''))
-      if (filters.totalAmountTo) params.totalAmountTo = parseInt(filters.totalAmountTo.replace(/\./g, ''))
-      
-      const response = await adminOrderAPI.getAll(params)
-      setOrders(response.data || [])
     } catch (error) {
       console.error('Error loading orders:', error)
       setOrders([])
+      setTotalPages(1)
+      setTotalElements(0)
     } finally {
       setLoading(false)
     }
+  }
+  
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleFilterChange = (field, value) => {
@@ -70,6 +134,7 @@ function OrderList() {
       totalAmountFrom: '',
       totalAmountTo: '',
     })
+    setCurrentPage(0) // Reset to first page when clearing filters
   }
 
   const formatPrice = (price) => {
@@ -120,7 +185,9 @@ function OrderList() {
           order.id === orderId ? response.data : order
         ))
         alert('Đã cập nhật trạng thái đơn hàng!')
-        loadOrders()
+        // Reload orders and counts to update the numbers
+        await loadOrders()
+        await loadOrderCounts()
       }
     } catch (error) {
       console.error('Error updating order status:', error)
@@ -128,10 +195,11 @@ function OrderList() {
     }
   }
 
-  // Tính số lượng đơn hàng theo status
+  // Lấy số lượng đơn hàng theo status từ orderCounts (tổng số, không phụ thuộc pagination)
   const getOrderCountByStatus = (status) => {
-    if (status === 'all') return orders.length
-    return orders.filter(o => getStatusKey(o.status) === status.toUpperCase()).length
+    if (status === 'all') return orderCounts.all
+    const statusKey = status.toLowerCase()
+    return orderCounts[statusKey] || 0
   }
 
   return (
@@ -406,6 +474,25 @@ function OrderList() {
       {!loading && orders.length === 0 && (
         <div className="bg-white rounded-lg shadow-md p-12 text-center">
           <p className="text-gray-500">Không có đơn hàng nào</p>
+        </div>
+      )}
+      
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-8">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+          <div className="text-center mt-4 text-sm text-gray-500 bg-gray-50 rounded-lg py-3 px-4">
+            <span className="font-medium text-gray-700">
+              Hiển thị {currentPage * pageSize + 1} - {Math.min((currentPage + 1) * pageSize, totalElements)}
+            </span>
+            <span className="text-gray-500"> trong tổng số </span>
+            <span className="font-semibold text-vest-dark">{totalElements}</span>
+            <span className="text-gray-500"> đơn hàng</span>
+          </div>
         </div>
       )}
     </div>

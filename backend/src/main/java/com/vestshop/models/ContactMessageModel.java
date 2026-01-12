@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ContactMessageModel {
-    private Long id;
+    private Integer id;
     private String name;
     private String email;
     private String phone;

@@ -6,6 +6,7 @@ import java.util.Map;
 
 import com.vestshop.enums.OrderStatus;
 import com.vestshop.models.OrderModel;
+import com.vestshop.models.PageResponseModel;
 
 public interface OrderService {
     
@@ -16,7 +17,7 @@ public interface OrderService {
     List<OrderModel> getAllOrders();
     
     // Lấy đơn hàng theo ID
-    OrderModel getOrderById(Long id);
+    OrderModel getOrderById(Integer id);
     
     // Lấy đơn hàng theo email
     List<OrderModel> getOrdersByEmail(String email);
@@ -25,21 +26,24 @@ public interface OrderService {
     List<OrderModel> getOrdersByStatus(OrderStatus status);
     
     // Cập nhật trạng thái đơn hàng
-    OrderModel updateOrderStatus(Long id, OrderStatus status);
+    OrderModel updateOrderStatus(Integer id, OrderStatus status);
     
     // Đếm đơn hàng theo trạng thái
-    Long countOrdersByStatus(OrderStatus status);
+    Integer countOrdersByStatus(OrderStatus status);
     
     // Tính tổng doanh thu
-    Long getTotalRevenue();
+    Integer getTotalRevenue();
     
     // Lấy doanh thu theo ngày
-    Map<String, Long> getRevenueByDateRange(LocalDate startDate, LocalDate endDate);
+    Map<String, Integer> getRevenueByDateRange(LocalDate startDate, LocalDate endDate);
     
     // Lọc đơn hàng theo nhiều tiêu chí
     List<OrderModel> filterOrders(String fullName, String email, String phone, OrderStatus status, 
                                    com.vestshop.enums.PaymentMethod paymentMethod,
                                    LocalDate createdAtFrom, LocalDate createdAtTo,
-                                   Long totalAmountFrom, Long totalAmountTo);
+                                   Integer totalAmountFrom, Integer totalAmountTo);
+    
+    // Lấy danh sách đơn hàng có phân trang (cho admin)
+    PageResponseModel<OrderModel> getAllOrdersPaginated(int page, int size);
 }
 

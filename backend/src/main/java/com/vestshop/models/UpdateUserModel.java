@@ -31,6 +31,9 @@ public class UpdateUserModel {
     @Size(min = 6, message = "mật khẩu phải có ít nhất 6 ký tự")
     private String password;
     
+    // Password cũ để xác thực (chỉ dùng khi user tự update password)
+    private String currentPassword;
+    
     @NotBlank(message = "họ và tên không được để trống")
     @Size(max = 50, message = "họ và tên chỉ được có tối đa 50 ký tự")
     private String fullname;

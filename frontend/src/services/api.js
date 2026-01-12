@@ -66,6 +66,22 @@ api.interceptors.response.use(
 // Products API
 export const productAPI = {
   getAll: () => api.get('/products'),
+  getAllPaginated: (page = 0, size = 8, filters = {}) => {
+    const params = new URLSearchParams({ page: page.toString(), size: size.toString() });
+    if (filters.category && filters.category !== 'all') {
+      params.append('category', filters.category);
+    }
+    if (filters.minPrice) {
+      params.append('minPrice', filters.minPrice.toString());
+    }
+    if (filters.maxPrice) {
+      params.append('maxPrice', filters.maxPrice.toString());
+    }
+    if (filters.sortBy) {
+      params.append('sortBy', filters.sortBy);
+    }
+    return api.get(`/products?${params.toString()}`);
+  },
   getById: (id) => api.get(`/products/${id}`),
   search: (keyword) => api.get(`/products/search?keyword=${keyword}`),
 };
@@ -80,7 +96,29 @@ export const orderAPI = {
 
 // Admin Products API
 export const adminProductAPI = {
-  getAll: () => api.get('/admin/products'),
+  getAll: (params) => api.get('/admin/products', { params }),
+  getAllPaginated: (page = 0, size = 10, filters = {}) => {
+    const params = new URLSearchParams({ page: page.toString(), size: size.toString() });
+    if (filters.searchTerm && filters.searchTerm.trim() !== '') {
+      params.append('searchTerm', filters.searchTerm.trim());
+    }
+    if (filters.status && filters.status !== 'all') {
+      params.append('status', filters.status);
+    }
+    if (filters.minPrice) {
+      params.append('minPrice', filters.minPrice.toString());
+    }
+    if (filters.maxPrice) {
+      params.append('maxPrice', filters.maxPrice.toString());
+    }
+    if (filters.sortBy) {
+      params.append('sortBy', filters.sortBy);
+    }
+    if (filters.sortOrder) {
+      params.append('sortOrder', filters.sortOrder);
+    }
+    return api.get(`/admin/products?${params.toString()}`);
+  },
   getById: (id) => api.get(`/admin/products/${id}`),
   create: (productData) => api.post('/admin/products', productData),
   update: (id, productData) => api.put(`/admin/products/${id}`, productData),
@@ -92,14 +130,17 @@ export const adminProductAPI = {
 // Admin Orders API
 export const adminOrderAPI = {
   getAll: (params) => api.get('/admin/orders', { params }),
+  getAllPaginated: (page = 0, size = 10) => api.get(`/admin/orders?page=${page}&size=${size}`),
   updateStatus: (id, status) => api.patch(`/admin/orders/${id}/status?status=${status}`),
   getStatistics: () => api.get('/admin/orders/statistics'),
   getRevenueByDateRange: (startDate, endDate) => api.get(`/admin/orders/revenue/by-date?startDate=${startDate}&endDate=${endDate}`),
+  getOrderCounts: () => api.get('/admin/orders/statistics'), // Alias for getStatistics to get order counts
 };
 
 // Admin Users API
 export const adminUserAPI = {
   getAll: (params) => api.get('/admin/users', { params }),
+  getAllPaginated: (page = 0, size = 10) => api.get(`/admin/users?page=${page}&size=${size}`),
   getById: (userId) => api.get(`/admin/users/${userId}`),
   updateRole: (userId, role) => api.patch(`/admin/users/${userId}/role?role=${role}`),
   updateStatus: (userId, status) => api.patch(`/admin/users/${userId}/status?status=${status}`),
@@ -113,6 +154,7 @@ export const contactAPI = {
 // Admin Contact API
 export const adminContactAPI = {
   getAll: () => api.get('/admin/contact/messages'),
+  getAllPaginated: (page = 0, size = 10) => api.get(`/admin/contact/messages?page=${page}&size=${size}`),
   getById: (id) => api.get(`/admin/contact/messages/${id}`),
   markAsRead: (id) => api.patch(`/admin/contact/messages/${id}/read`),
   getUnreadCount: () => api.get('/admin/contact/messages/unread/count'),
@@ -142,6 +184,24 @@ export const reviewAPI = {
 // Admin Reviews API
 export const adminReviewAPI = {
   getAll: (params) => api.get('/admin/reviews', { params }),
+  getAllPaginated: (page = 0, size = 10, params = {}) => {
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', page.toString());
+    queryParams.append('size', size.toString());
+    
+    // Only add params that have values
+    if (params.status) {
+      queryParams.append('status', params.status);
+    }
+    if (params.productId !== undefined && params.productId !== null && params.productId !== '') {
+      queryParams.append('productId', params.productId.toString());
+    }
+    if (params.userId !== undefined && params.userId !== null && params.userId !== '') {
+      queryParams.append('userId', params.userId.toString());
+    }
+    
+    return api.get(`/admin/reviews?${queryParams.toString()}`);
+  },
   getById: (id) => api.get(`/admin/reviews/${id}`),
   updateStatus: (id, status) => api.patch(`/admin/reviews/${id}/status?status=${status}`),
   delete: (id) => api.delete(`/admin/reviews/${id}`),

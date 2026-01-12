@@ -40,7 +40,7 @@ public class AuthService {
     ModelMapper modelMapper;
 
     private String formatExpirationTime(Long expirationMillis) {
-        LocalDateTime expirationTime = LocalDateTime.now().plusSeconds(expirationMillis / 1000);
+        LocalDateTime expirationTime = LocalDateTime.now().plusSeconds(expirationMillis / 1000); // Chuyển đổi từ milliseconds sang seconds
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         return expirationTime.format(formatter);
     }
@@ -49,21 +49,23 @@ public class AuthService {
     public UserModel register(RegisterModel request){
         // Kiểm tra username đã tồn tại chưa
         if(userRepository.existsByUsername(request.getUsername())){
-            throw new RuntimeException("Username already exists");
+            throw new RuntimeException("Tên đăng nhập đã tồn tại");
         }
         
         // Kiểm tra email đã tồn tại chưa
         if(userRepository.existsByEmail(request.getEmail())){
-            throw new RuntimeException("Email already exists");
+            throw new RuntimeException("Email đã được sử dụng");
         }
         
         // Kiểm tra phone đã tồn tại chưa
         if(userRepository.existsByPhone(request.getPhone())){
-            throw new RuntimeException("Phone number already exists");
+            throw new RuntimeException("Số điện thoại đã được sử dụng");
         }
 
+        // Gán role cho user
         Role userRole = Role.USER;
         
+        // Tạo user mới
         User user = User.builder()
                     .username(request.getUsername())
                     .password(passwordEncoder.encode(request.getPassword()))
@@ -85,6 +87,7 @@ public class AuthService {
         Map<String, Object> claim = new HashMap<>();
         claim.put("role", savedUser.getRole().name());
         
+        // Tạo access token và refresh token
         String accessToken = jwtService.generateToken(claim, savedUser);
         String refreshToken = jwtService.generateRefreshToken(claim, savedUser);
 
@@ -110,17 +113,18 @@ public class AuthService {
                 new UsernamePasswordAuthenticationToken(request.username(), request.password())
         );
         User user = userRepository.findByUsername(request.username())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("Tài khoản không tồn tại"));
 
         // Kiểm tra status của user
         if (user.getStatus() == UserStatus.DISABLED) {
-            throw new RuntimeException("Account disabled");
+            throw new RuntimeException("Tài khoản đã bị vô hiệu hóa");
         }
 
         // Tạo custom claims cho token
         Map<String, Object> claim = new HashMap<>();
         claim.put("role", user.getRole().name());
         
+        // Tạo access token và refresh token
         String accessToken = jwtService.generateToken(claim, user);
         String refreshToken = jwtService.generateRefreshToken(claim, user);
 
@@ -150,6 +154,7 @@ public class AuthService {
         return logoutResponse;
     }
 
+    // Lấy user theo username
     public UserModel getUserByUsername(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -170,19 +175,21 @@ public class AuthService {
                 .build();
     }
 
+    // Lấy username từ token
     public String getUsernameFromToken(String token) {
         try {
             return jwtService.extractUsername(token);
         } catch (Exception e) {
-            throw new RuntimeException("Error extracting username from token");
+            throw new RuntimeException("Lỗi xác thực token. Vui lòng đăng nhập lại");
         }
     }
 
+    // Cập nhật thông tin người dùng bởi admin
     @Transactional(rollbackFor = Exception.class)
     public UserModel adminUpdateUser(UpdateUserModel updateDto, UserModel currentUser) {        
         // Kiểm tra chỉ ADMIN mới được update
         if (currentUser == null || currentUser.getRole() != Role.ADMIN) {
-            throw new RuntimeException("Only ADMIN can update user information");
+            throw new RuntimeException("Chỉ quản trị viên mới có quyền cập nhật thông tin người dùng");
         }
         
         User user = userRepository.findById(updateDto.getUserId())
@@ -193,11 +200,11 @@ public class AuthService {
             String newUsername = updateDto.getUsername().trim();
             // Validate username length
             if (newUsername.length() < 3 || newUsername.length() > 50) {
-                throw new RuntimeException("Username must be between 3 and 50 characters");
+                throw new RuntimeException("Tên đăng nhập phải có từ 3 đến 50 ký tự");
             }
             // Kiểm tra username đã tồn tại chưa (trừ chính user này)
             if (userRepository.existsByUsernameAndUserIdNot(newUsername, updateDto.getUserId())) {
-                throw new RuntimeException("Username already exists");
+                throw new RuntimeException("Tên đăng nhập đã tồn tại");
             }
             user.setUsername(newUsername);
         }
@@ -207,7 +214,7 @@ public class AuthService {
             String newPassword = updateDto.getPassword().trim();
             // Validate password length
             if (newPassword.length() < 6) {
-                throw new RuntimeException("Password must be at least 6 characters");
+                throw new RuntimeException("Mật khẩu phải có ít nhất 6 ký tự");
             }
             user.setPassword(passwordEncoder.encode(newPassword));
         }
@@ -235,7 +242,7 @@ public class AuthService {
             String newEmail = updateDto.getEmail().trim();
             // Kiểm tra email đã tồn tại chưa (trừ chính user này)
             if (userRepository.existsByEmailAndUserIdNot(newEmail, updateDto.getUserId())) {
-                throw new RuntimeException("Email already exists");
+                throw new RuntimeException("Email đã được sử dụng");
             }
             user.setEmail(newEmail);
         }
@@ -243,7 +250,7 @@ public class AuthService {
             String newPhone = updateDto.getPhone().trim();
             // Kiểm tra phone đã tồn tại chưa (trừ chính user này)
             if (userRepository.existsByPhoneAndUserIdNot(newPhone, updateDto.getUserId())) {
-                throw new RuntimeException("Phone number already exists");
+                throw new RuntimeException("Số điện thoại đã được sử dụng");
             }
             user.setPhone(newPhone);
         }
@@ -259,13 +266,14 @@ public class AuthService {
         return modelMapper.map(savedUser, UserModel.class);
     }
 
+    // Cập nhật thông tin người dùng bởi chính user đó
     public UserModel userUpdateSelf(UpdateUserModel updateDto, UserModel currentUser) {
         if (currentUser == null || updateDto.getUserId() == null) {
-            throw new RuntimeException("User information is required");
+            throw new RuntimeException("Thông tin người dùng là bắt buộc");
         }
         // Use .equals() for Integer comparison, and allow admin to update their own info
         if (!currentUser.getUserId().equals(updateDto.getUserId())) {
-            throw new RuntimeException("Only user can update their own information");
+            throw new RuntimeException("Bạn chỉ có thể cập nhật thông tin của chính mình");
         }
         
         User user = userRepository.findById(updateDto.getUserId())
@@ -274,23 +282,40 @@ public class AuthService {
         // Update username nếu có
         if (updateDto.getUsername() != null && !updateDto.getUsername().trim().isEmpty()) {
             if (userRepository.existsByUsernameAndUserIdNot(updateDto.getUsername().trim(), updateDto.getUserId())) {
-                throw new RuntimeException("Username already exists");
+                throw new RuntimeException("Tên đăng nhập đã tồn tại");
             }
             String newUsername = updateDto.getUsername().trim();
             // Validate username length
             if (newUsername.length() < 3 || newUsername.length() > 50) {
-                throw new RuntimeException("Username must be between 3 and 50 characters");
+                throw new RuntimeException("Tên đăng nhập phải có từ 3 đến 50 ký tự");
             }
             user.setUsername(newUsername);
         }
 
-        // Update password nếu có
+        // Update password nếu có - yêu cầu xác thực password cũ
         if (updateDto.getPassword() != null && !updateDto.getPassword().trim().isEmpty()) {
+            // Yêu cầu nhập password cũ để xác thực
+            if (updateDto.getCurrentPassword() == null || updateDto.getCurrentPassword().trim().isEmpty()) {
+                throw new RuntimeException("Vui lòng nhập mật khẩu hiện tại để xác thực");
+            }
+            
+            // Verify password cũ
+            String currentPassword = updateDto.getCurrentPassword().trim();
+            if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+                throw new RuntimeException("Mật khẩu hiện tại không đúng");
+            }
+            
             String newPassword = updateDto.getPassword().trim();
             // Validate password length
             if (newPassword.length() < 6) {
-                throw new RuntimeException("Password must be at least 6 characters");
+                throw new RuntimeException("Mật khẩu phải có ít nhất 6 ký tự");
             }
+            
+            // Kiểm tra mật khẩu mới không được giống mật khẩu cũ
+            if (passwordEncoder.matches(newPassword, user.getPassword())) {
+                throw new RuntimeException("Mật khẩu mới không được giống mật khẩu cũ");
+            }
+            
             user.setPassword(passwordEncoder.encode(newPassword));
         }
 
@@ -306,7 +331,7 @@ public class AuthService {
             String newEmail = updateDto.getEmail().trim();
             // Kiểm tra email đã tồn tại chưa (trừ chính user này)
             if (userRepository.existsByEmailAndUserIdNot(newEmail, updateDto.getUserId())) {
-                throw new RuntimeException("Email already exists");
+                throw new RuntimeException("Email đã được sử dụng");
             }
             user.setEmail(newEmail);
         }
@@ -314,7 +339,7 @@ public class AuthService {
             String newPhone = updateDto.getPhone().trim();
             // Kiểm tra phone đã tồn tại chưa (trừ chính user này)
             if (userRepository.existsByPhoneAndUserIdNot(newPhone, updateDto.getUserId())) {
-                throw new RuntimeException("Phone number already exists");
+                throw new RuntimeException("Số điện thoại đã được sử dụng");
             }
             user.setPhone(newPhone);
         }

@@ -13,7 +13,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity // Enable @PreAuthorize, @PostAuthorize, etc.
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Autowired

@@ -26,7 +26,7 @@ public class AdminUserController {
     // Lấy danh sách tất cả users (chỉ USER, không bao gồm ADMIN) với filter chi tiết
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
-    public ResponseEntity<List<UserModel>> getAllUsers(
+    public ResponseEntity<?> getAllUsers(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String fullname,
             @RequestParam(required = false) String email,
@@ -34,8 +34,18 @@ public class AdminUserController {
             @RequestParam(required = false) Gender gender,
             @RequestParam(required = false) UserStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate birthFrom,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate birthTo
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate birthTo,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size
     ) {
+        // Nếu có page hoặc size, trả về paginated response (chưa hỗ trợ filter với pagination)
+        if (page != null || size != null) {
+            int pageNum = page != null ? page : 0;
+            int pageSize = size != null ? size : 10;
+            return ResponseEntity.ok(userService.getAllUsersPaginated(pageNum, pageSize));
+        }
+        
+        // Nếu không có pagination, dùng logic filter như cũ
         List<UserModel> users;
         
         // Nếu có search keyword, dùng search trước rồi filter

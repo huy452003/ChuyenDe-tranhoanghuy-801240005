@@ -15,11 +15,17 @@ import com.vestshop.repository.UserRepository;
 import com.vestshop.services.ReviewService;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.PageImpl;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.vestshop.models.PageResponseModel;
 
 @Service
 public class ReviewServiceImp implements ReviewService {
@@ -39,18 +45,16 @@ public class ReviewServiceImp implements ReviewService {
     @Autowired
     private ModelMapper modelMapper;
     
+    // Tạo đánh giá mới
     @Override
     @Transactional
-    public ReviewModel createReview(Long productId, Long userId, ReviewModel reviewModel) {
+    public ReviewModel createReview(Integer productId, Integer userId, ReviewModel reviewModel) {
         // Kiểm tra sản phẩm tồn tại
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
         
-        // Chuyển đổi Long userId sang Integer (vì User có userId là Integer)
-        Integer userIdInt = userId.intValue();
-        
         // Kiểm tra user tồn tại
-        User user = userRepository.findById(userIdInt)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại"));
         
         // Kiểm tra user đã đánh giá sản phẩm này chưa
@@ -76,14 +80,14 @@ public class ReviewServiceImp implements ReviewService {
         return convertToModel(savedReview);
     }
     
+    // Lấy danh sách đánh giá của sản phẩm (chỉ ACTIVE)
     @Override
     @Transactional(readOnly = true)
-    public List<ReviewModel> getProductReviews(Long productId) {
+    public List<ReviewModel> getProductReviews(Integer productId) {
         List<Review> reviews = reviewRepository.findByProductIdAndStatus(productId, ReviewStatus.ACTIVE);
-        // Force load relationships
         reviews.forEach(review -> {
             if (review.getUser() != null) {
-                review.getUser().getUsername(); // Force load
+                review.getUser().getUsername(); 
             }
         });
         return reviews.stream()
@@ -91,14 +95,14 @@ public class ReviewServiceImp implements ReviewService {
                 .collect(Collectors.toList());
     }
     
+    // Lấy tất cả đánh giá của sản phẩm (bao gồm cả HIDDEN - cho admin)
     @Override
     @Transactional(readOnly = true)
-    public List<ReviewModel> getAllProductReviews(Long productId) {
+    public List<ReviewModel> getAllProductReviews(Integer productId) {
         List<Review> reviews = reviewRepository.findByProductId(productId);
-        // Force load relationships
         reviews.forEach(review -> {
             if (review.getUser() != null) {
-                review.getUser().getUsername(); // Force load
+                review.getUser().getUsername(); 
             }
         });
         return reviews.stream()
@@ -106,29 +110,27 @@ public class ReviewServiceImp implements ReviewService {
                 .collect(Collectors.toList());
     }
     
+    // Lấy đánh giá theo ID
     @Override
     @Transactional(readOnly = true)
-    public ReviewModel getReviewById(Long reviewId) {
+    public ReviewModel getReviewById(Integer reviewId) {
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new RuntimeException("Đánh giá không tồn tại"));
-        // Force load relationships
         if (review.getUser() != null) {
-            review.getUser().getUsername(); // Force load
+            review.getUser().getUsername(); 
         }
         return convertToModel(review);
     }
     
+    // Cập nhật đánh giá (chỉ user sở hữu)
     @Override
     @Transactional
-    public ReviewModel updateReview(Long reviewId, Long userId, ReviewModel reviewModel) {
+    public ReviewModel updateReview(Integer reviewId, Integer userId, ReviewModel reviewModel) {
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new RuntimeException("Đánh giá không tồn tại"));
         
-        // Chuyển đổi Long userId sang Integer để so sánh
-        Integer userIdInt = userId.intValue();
-        
         // Kiểm tra user có quyền sửa đánh giá này không
-        if (!review.getUser().getUserId().equals(userIdInt)) {
+        if (!review.getUser().getUserId().equals(userId)) {
             throw new RuntimeException("Bạn không có quyền sửa đánh giá này");
         }
         
@@ -140,17 +142,15 @@ public class ReviewServiceImp implements ReviewService {
         return convertToModel(updatedReview);
     }
     
+    // Xóa đánh giá (chỉ user sở hữu - soft delete)
     @Override
     @Transactional
-    public void deleteReview(Long reviewId, Long userId) {
+    public void deleteReview(Integer reviewId, Integer userId) {
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new RuntimeException("Đánh giá không tồn tại"));
         
-        // Chuyển đổi Long userId sang Integer để so sánh
-        Integer userIdInt = userId.intValue();
-        
         // Kiểm tra user có quyền xóa đánh giá này không
-        if (!review.getUser().getUserId().equals(userIdInt)) {
+        if (!review.getUser().getUserId().equals(userId)) {
             throw new RuntimeException("Bạn không có quyền xóa đánh giá này");
         }
         
@@ -159,24 +159,22 @@ public class ReviewServiceImp implements ReviewService {
         reviewRepository.save(review);
     }
     
+    // Admin: Lấy tất cả đánh giá (có filter)
     @Override
     @Transactional(readOnly = true)
-    public List<ReviewModel> getAllReviews(Long productId, Long userId, ReviewStatus status) {
+    public List<ReviewModel> getAllReviews(Integer productId, Integer userId, ReviewStatus status) {
         List<Review> reviews;
         
-        // Chuyển đổi Long userId sang Integer nếu có
-        Integer userIdInt = userId != null ? userId.intValue() : null;
-        
         if (productId != null && userId != null && status != null) {
-            // Filter by all three
+            // Lọc theo tất cả ba
             reviews = reviewRepository.findAll().stream()
                     .filter(r -> r.getProduct().getId().equals(productId))
-                    .filter(r -> r.getUser().getUserId().equals(userIdInt))
+                    .filter(r -> r.getUser().getUserId().equals(userId))
                     .filter(r -> r.getStatus() == status)
                     .collect(Collectors.toList());
         } else if (productId != null && userId != null) {
             reviews = reviewRepository.findByProductId(productId).stream()
-                    .filter(r -> r.getUser().getUserId().equals(userIdInt))
+                    .filter(r -> r.getUser().getUserId().equals(userId))
                     .collect(Collectors.toList());
         } else if (productId != null && status != null) {
             reviews = reviewRepository.findByProductIdAndStatus(productId, status);
@@ -196,13 +194,12 @@ public class ReviewServiceImp implements ReviewService {
             reviews = reviewRepository.findAll();
         }
         
-        // Force load relationships
         reviews.forEach(review -> {
             if (review.getUser() != null) {
-                review.getUser().getUsername(); // Force load
+                review.getUser().getUsername(); 
             }
             if (review.getProduct() != null) {
-                review.getProduct().getName(); // Force load
+                review.getProduct().getName(); 
             }
         });
         
@@ -211,9 +208,10 @@ public class ReviewServiceImp implements ReviewService {
                 .collect(Collectors.toList());
     }
     
+    // Admin: Cập nhật trạng thái đánh giá
     @Override
     @Transactional
-    public ReviewModel updateReviewStatus(Long reviewId, ReviewStatus status) {
+    public ReviewModel updateReviewStatus(Integer reviewId, ReviewStatus status) {
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new RuntimeException("Đánh giá không tồn tại"));
         
@@ -222,18 +220,20 @@ public class ReviewServiceImp implements ReviewService {
         return convertToModel(updatedReview);
     }
     
+    // Admin: Xóa đánh giá (hard delete)
     @Override
     @Transactional
-    public void deleteReviewByAdmin(Long reviewId) {
+    public void deleteReviewByAdmin(Integer reviewId) {
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new RuntimeException("Đánh giá không tồn tại"));
         
         reviewRepository.delete(review);
     }
     
+    // Tính rating trung bình của sản phẩm
     @Override
     @Transactional(readOnly = true)
-    public Double getAverageRating(Long productId) {
+    public Double getAverageRating(Integer productId) {
         List<Review> reviews = reviewRepository.findByProductIdAndStatus(productId, ReviewStatus.ACTIVE);
         if (reviews.isEmpty()) {
             return 0.0;
@@ -244,26 +244,26 @@ public class ReviewServiceImp implements ReviewService {
         return sum / reviews.size();
     }
     
+    // Đếm số lượng đánh giá của sản phẩm
     @Override
     @Transactional(readOnly = true)
-    public Long getReviewCount(Long productId) {
+    public Integer getReviewCount(Integer productId) {
         return reviewRepository.countByProductIdAndStatus(productId, ReviewStatus.ACTIVE);
     }
     
+    // Kiểm tra user đã đánh giá sản phẩm chưa
     @Override
     @Transactional(readOnly = true)
-    public boolean hasUserReviewed(Long productId, Long userId) {
+    public boolean hasUserReviewed(Integer productId, Integer userId) {
         return reviewRepository.findByProductIdAndUserId(productId, userId).isPresent();
     }
     
+    // Kiểm tra user đã mua sản phẩm và đơn hàng đã thành công chưa
     @Override
     @Transactional(readOnly = true)
-    public boolean hasUserPurchasedProduct(Long productId, Long userId) {
-        // Chuyển đổi Long userId sang Integer
-        Integer userIdInt = userId.intValue();
-        
+    public boolean hasUserPurchasedProduct(Integer productId, Integer userId) {
         // Lấy user để lấy email
-        User user = userRepository.findById(userIdInt)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại"));
         
         String userEmail = user.getEmail();
@@ -291,27 +291,26 @@ public class ReviewServiceImp implements ReviewService {
         return false;
     }
     
+    // Đếm số lượng đơn hàng đã thành công của sản phẩm (để hiển thị "lượt mua")
     @Override
     @Transactional(readOnly = true)
-    public Long getCompletedOrderCount(Long productId) {
+    public Integer getCompletedOrderCount(Integer productId) {
         // Lấy tất cả đơn hàng đã thành công
         List<Order> completedOrders = orderRepository.findByStatus(OrderStatus.COMPLETED);
         
-        // Force load items để tránh lazy loading exception
         completedOrders.forEach(order -> {
             if (order.getItems() != null) {
-                order.getItems().size(); // Force initialization
-                // Force load product trong items
+                order.getItems().size(); 
                 order.getItems().forEach(item -> {
                     if (item.getProduct() != null) {
-                        item.getProduct().getId(); // Force load
+                        item.getProduct().getId(); 
                     }
                 });
             }
         });
         
         // Đếm số lượng đơn hàng chứa sản phẩm này
-        long count = completedOrders.stream()
+        Integer count = (int) completedOrders.stream()
                 .filter(order -> {
                     if (order.getItems() != null) {
                         return order.getItems().stream()
@@ -325,7 +324,7 @@ public class ReviewServiceImp implements ReviewService {
         return count;
     }
     
-    // Helper method để convert Entity sang Model
+    // Phương thức trợ giúp để chuyển đổi từ Entity sang Model
     private ReviewModel convertToModel(Review review) {
         ReviewModel model = modelMapper.map(review, ReviewModel.class);
         
@@ -337,12 +336,123 @@ public class ReviewServiceImp implements ReviewService {
         
         // Set user info
         if (review.getUser() != null) {
-            model.setUserId(review.getUser().getUserId().longValue()); // Chuyển Integer sang Long
+            model.setUserId(review.getUser().getUserId());
             model.setUserFullname(review.getUser().getFullname());
             model.setUsername(review.getUser().getUsername());
         }
         
         return model;
+    }
+    
+    // Admin: Lấy tất cả đánh giá có phân trang (có filter) 
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponseModel<ReviewModel> getAllReviewsPaginated(int page, int size, Integer productId, Integer userId, ReviewStatus status) {
+        // Kiểm tra page và size
+        if (page < 0) page = 0;
+        if (size < 1) size = 10; // Kích thước mặc định là 10
+        
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Review> reviewPage;
+        
+        // Chuyển đổi userId sang Integer để so sánh
+        Integer userIdInt = userId != null ? userId.intValue() : null;
+        
+        // Áp dụng các bộ lọc - xử lý tất cả các trường hợp
+        List<Review> filtered;
+        
+        if (productId != null && userIdInt != null && status != null) {
+            // Lọc theo tất cả ba
+            filtered = reviewRepository.findAll().stream()
+                .filter(r -> r.getProduct() != null && r.getProduct().getId().equals(productId))
+                .filter(r -> r.getUser() != null && r.getUser().getUserId().equals(userIdInt))
+                .filter(r -> r.getStatus() == status)
+                .collect(Collectors.toList());
+        } else if (productId != null && userIdInt != null) {
+            // Lọc theo productId và userId
+            filtered = reviewRepository.findByProductId(productId).stream()
+                .filter(r -> r.getUser() != null && r.getUser().getUserId().equals(userIdInt))
+                .collect(Collectors.toList());
+        } else if (productId != null && status != null) {
+            // Lọc theo productId và status
+            filtered = reviewRepository.findByProductIdAndStatus(productId, status);
+        } else if (userIdInt != null && status != null) {
+            // Lọc theo userId và status
+            filtered = reviewRepository.findByUserId(userId).stream()
+                .filter(r -> r.getStatus() == status)
+                .collect(Collectors.toList());
+        } else if (productId != null) {
+            // Lọc theo productId chỉ
+            filtered = reviewRepository.findByProductId(productId);
+        } else if (userIdInt != null) {
+            // Lọc theo userId chỉ
+            filtered = reviewRepository.findByUserId(userId);
+        } else if (status != null) {
+            // Lọc theo status chỉ
+            filtered = reviewRepository.findAll().stream()
+                .filter(r -> r.getStatus() == status)
+                .collect(Collectors.toList());
+        } else {
+            // Không có bộ lọc - sử dụng findAll với phân trang
+            reviewPage = reviewRepository.findAll(pageable);
+            reviewPage.getContent().forEach(review -> {
+                if (review.getUser() != null) {
+                    review.getUser().getUsername(); 
+                }
+                if (review.getProduct() != null) {
+                    review.getProduct().getName(); 
+                }
+            });
+            
+            // Chuyển đổi sang ReviewModel
+            List<ReviewModel> content = reviewPage.getContent().stream()
+                .map(this::convertToModel)
+                .collect(Collectors.toList());
+            
+            // Tạo PageResponse
+            PageResponseModel<ReviewModel> response = new PageResponseModel<>();
+            response.setContent(content);
+            response.setPage(reviewPage.getNumber());
+            response.setSize(reviewPage.getSize());
+            response.setTotalElements(reviewPage.getTotalElements());
+            response.setTotalPages(reviewPage.getTotalPages());
+            response.setFirst(reviewPage.isFirst());
+            response.setLast(reviewPage.isLast());
+            
+            return response;
+        }
+        
+        // Phân trang thủ công cho kết quả lọc
+        int start = page * size;
+        int end = Math.min(start + size, filtered.size());
+        List<Review> paginated = start < filtered.size() ? filtered.subList(start, end) : List.of();
+        reviewPage = new PageImpl<>(paginated, pageable, filtered.size());
+        
+        reviewPage.getContent().forEach(review -> {
+            if (review.getUser() != null) {
+                review.getUser().getUsername(); 
+            }
+            if (review.getProduct() != null) {
+                review.getProduct().getName(); 
+            }
+        });
+        
+        // Chuyển đổi sang ReviewModel
+        List<ReviewModel> content = reviewPage.getContent().stream()
+            .map(this::convertToModel)
+            .collect(Collectors.toList());
+        
+        // Tạo PageResponse
+        PageResponseModel<ReviewModel> response = new PageResponseModel<>();
+        response.setContent(content);
+        response.setPage(reviewPage.getNumber());
+        response.setSize(reviewPage.getSize());
+        response.setTotalElements(reviewPage.getTotalElements());
+        response.setTotalPages(reviewPage.getTotalPages());
+        response.setFirst(reviewPage.isFirst());
+        response.setLast(reviewPage.isLast());
+        
+        return response;
     }
 }
 

@@ -10,21 +10,16 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
-public interface OrderRepository extends JpaRepository<Order, Long> {
-    
+public interface OrderRepository extends JpaRepository<Order, Integer> {
     // Tìm đơn hàng theo email
     List<Order> findByEmail(String email);
-    
     // Tìm đơn hàng theo số điện thoại
     List<Order> findByPhone(String phone);
-    
     // Tìm đơn hàng theo trạng thái
     List<Order> findByStatus(OrderStatus status);
-    
     // Tìm đơn hàng theo khoảng thời gian
     List<Order> findByCreatedAtBetween(LocalDateTime startDate, LocalDateTime endDate);
-    
     // Đếm số đơn hàng theo trạng thái
-    Long countByStatus(OrderStatus status);
+    Integer countByStatus(OrderStatus status);
 }
 

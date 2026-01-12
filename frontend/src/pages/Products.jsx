@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { productAPI } from '../services/api'
+import Pagination from '../components/Pagination'
 
 function Products() {
   const [products, setProducts] = useState([])
@@ -8,119 +9,76 @@ function Products() {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [priceRange, setPriceRange] = useState('all')
   const [sortBy, setSortBy] = useState('name')
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalElements, setTotalElements] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const pageSize = 8
+
+  // Reset page to 0 when filters change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [selectedCategory, priceRange, sortBy]);
 
   useEffect(() => {
     loadProducts();
-  }, []);
+  }, [currentPage, selectedCategory, priceRange, sortBy]);
 
   const loadProducts = async () => {
+    setLoading(true);
     try {
-      const response = await productAPI.getAll();
-      const data = response.data || [];
-      setProducts(data);
-      setFilteredProducts(data);
+      // Build filter params
+      const filters = {
+        category: selectedCategory,
+        sortBy: sortBy
+      };
+
+      // Convert price range to minPrice/maxPrice
+      if (priceRange === 'under4m') {
+        filters.maxPrice = 3999999;
+      } else if (priceRange === '4m-5m') {
+        filters.minPrice = 4000000;
+        filters.maxPrice = 5000000;
+      } else if (priceRange === 'over5m') {
+        filters.minPrice = 5000001;
+      }
+
+      const response = await productAPI.getAllPaginated(currentPage, pageSize, filters);
+      
+      // Check if response has pagination info (PageResponse)
+      if (response.data && response.data.content) {
+        // Paginated response
+        const data = response.data.content || [];
+        setProducts(data);
+        setFilteredProducts(data);
+        setTotalPages(response.data.totalPages || 1);
+        setTotalElements(response.data.totalElements || 0);
+      } else {
+        // Fallback: non-paginated response (backward compatible)
+        const data = response.data || [];
+        setProducts(data);
+        setFilteredProducts(data);
+        setTotalPages(Math.ceil(data.length / pageSize));
+        setTotalElements(data.length);
+      }
     } catch (error) {
       console.error('Error loading products:', error);
-      // Fallback to mock data if API fails
-      const mockProducts = [
-      {
-        id: 1,
-        name: 'Vest Đen Cổ Điển',
-        price: 3500000,
-        image: 'https://images.unsplash.com/photo-1594938291221-94f18cbb5660?w=500',
-        category: 'Classic',
-        description: 'Vest đen cổ điển, phù hợp cho mọi dịp'
-      },
-      {
-        id: 2,
-        name: 'Vest Xanh Navy Sang Trọng',
-        price: 4200000,
-        image: 'https://images.unsplash.com/photo-1593030761757-71fae45fa0e7?w=500',
-        category: 'Premium',
-        description: 'Vest xanh navy cao cấp'
-      },
-      {
-        id: 3,
-        name: 'Vest Xám Lịch Lãm',
-        price: 3800000,
-        image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=500',
-        category: 'Business',
-        description: 'Vest xám thanh lịch cho doanh nhân'
-      },
-      {
-        id: 4,
-        name: 'Vest Nâu Đậm Modern',
-        price: 4500000,
-        image: 'https://images.unsplash.com/photo-1617127365659-c47fa864d8bc?w=500',
-        category: 'Modern',
-        description: 'Thiết kế hiện đại, trẻ trung'
-      },
-      {
-        id: 5,
-        name: 'Vest Kẻ Sọc Thanh Lịch',
-        price: 3900000,
-        image: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=500',
-        category: 'Classic',
-        description: 'Họa tiết kẻ sọc tinh tế'
-      },
-      {
-        id: 6,
-        name: 'Vest Xanh Lam Nhạt',
-        price: 3600000,
-        image: 'https://images.unsplash.com/photo-1598522325074-042db73aa4e6?w=500',
-        category: 'Business',
-        description: 'Tông màu nhẹ nhàng, dễ phối'
-      },
-      {
-        id: 7,
-        name: 'Vest Đen Cao Cấp Premium',
-        price: 5500000,
-        image: 'https://images.unsplash.com/photo-1600091166971-7f9faad6c1e2?w=500',
-        category: 'Premium',
-        description: 'Dòng cao cấp nhất, vải Ý'
-      },
-      {
-        id: 8,
-        name: 'Vest Trắng Kem Dự Tiệc',
-        price: 4800000,
-        image: 'https://images.unsplash.com/photo-1562788869-4ed32648eb72?w=500',
-        category: 'Modern',
-        description: 'Hoàn hảo cho các dịp đặc biệt'
-      }
-      ];
-      setProducts(mockProducts);
-      setFilteredProducts(mockProducts);
+      setProducts([]);
+      setFilteredProducts([]);
+      setTotalPages(1);
+      setTotalElements(0);
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    let filtered = [...products]
-
-    // Filter by category
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(p => p.category === selectedCategory)
-    }
-
-    // Filter by price range
-    if (priceRange === 'under4m') {
-      filtered = filtered.filter(p => p.price < 4000000)
-    } else if (priceRange === '4m-5m') {
-      filtered = filtered.filter(p => p.price >= 4000000 && p.price <= 5000000)
-    } else if (priceRange === 'over5m') {
-      filtered = filtered.filter(p => p.price > 5000000)
-    }
-
-    // Sort
-    if (sortBy === 'price-asc') {
-      filtered.sort((a, b) => a.price - b.price)
-    } else if (sortBy === 'price-desc') {
-      filtered.sort((a, b) => b.price - a.price)
-    } else {
-      filtered.sort((a, b) => a.name.localeCompare(b.name))
-    }
-
-    setFilteredProducts(filtered)
-  }, [selectedCategory, priceRange, sortBy, products])
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage)
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   return (
     <div className="py-12">
@@ -178,52 +136,87 @@ function Products() {
         </div>
 
         {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {filteredProducts.map(product => (
-            <Link
-              key={product.id}
-              to={`/products/${product.id}`}
-              className="card group"
-            >
-              <div className="aspect-[3/4] overflow-hidden">
-                <img
-                  src={product.images?.[0] || 'https://via.placeholder.com/500'}
-                  alt={product.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-vest-gold mx-auto"></div>
+            <p className="mt-4 text-gray-600">Đang tải sản phẩm...</p>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {filteredProducts.map(product => (
+                <Link
+                  key={product.id}
+                  to={`/products/${product.id}`}
+                  className="card group"
+                >
+                  <div className="aspect-[3/4] overflow-hidden">
+                    <img
+                      src={product.images?.[0] || 'https://via.placeholder.com/500'}
+                      alt={product.name}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                  </div>
+                  <div className="p-4">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm text-vest-gold font-medium">{product.category}</span>
+                      {(product.status === 'OUT_OF_STOCK' || product.stock === 0) && (
+                        <span className="text-xs text-red-600 font-semibold bg-red-50 px-2 py-0.5 rounded">
+                          Hết hàng
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-lg font-serif font-semibold mt-1 mb-2">{product.name}</h3>
+                    <p className="text-sm text-gray-600 mb-2">{product.description}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {product.salePrice ? (
+                        <>
+                          <p className="text-lg text-gray-400 line-through">
+                            {product.price.toLocaleString('vi-VN')} ₫
+                          </p>
+                          <p className="text-xl font-bold text-red-600">
+                            {product.salePrice.toLocaleString('vi-VN')} ₫
+                          </p>
+                          <span className="bg-red-500 text-white px-2 py-0.5 rounded-full text-xs font-bold">
+                            -{Math.round((1 - product.salePrice / product.price) * 100)}%
+                          </span>
+                        </>
+                      ) : (
+                        <p className="text-xl font-bold text-vest-dark">
+                          {product.price.toLocaleString('vi-VN')} ₫
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            {filteredProducts.length === 0 && !loading && (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">Không tìm thấy sản phẩm nào</p>
               </div>
-              <div className="p-4">
-                <span className="text-sm text-vest-gold font-medium">{product.category}</span>
-                <h3 className="text-lg font-serif font-semibold mt-1 mb-2">{product.name}</h3>
-                <p className="text-sm text-gray-600 mb-2">{product.description}</p>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {product.salePrice ? (
-                    <>
-                      <p className="text-lg text-gray-400 line-through">
-                        {product.price.toLocaleString('vi-VN')} ₫
-                      </p>
-                      <p className="text-xl font-bold text-red-600">
-                        {product.salePrice.toLocaleString('vi-VN')} ₫
-                      </p>
-                      <span className="bg-red-500 text-white px-2 py-0.5 rounded-full text-xs font-bold">
-                        -{Math.round((1 - product.salePrice / product.price) * 100)}%
-                      </span>
-                    </>
-                  ) : (
-                    <p className="text-xl font-bold text-vest-dark">
-                      {product.price.toLocaleString('vi-VN')} ₫
-                    </p>
-                  )}
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-12">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                />
+                <div className="text-center mt-6 text-sm text-gray-500 bg-gray-50 rounded-lg py-3 px-4">
+                  <span className="font-medium text-gray-700">
+                    Hiển thị {currentPage * pageSize + 1} - {Math.min((currentPage + 1) * pageSize, totalElements)}
+                  </span>
+                  <span className="text-gray-500"> trong tổng số </span>
+                  <span className="font-semibold text-vest-dark">{totalElements}</span>
+                  <span className="text-gray-500"> sản phẩm</span>
                 </div>
               </div>
-            </Link>
-          ))}
-        </div>
-
-        {filteredProducts.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">Không tìm thấy sản phẩm nào</p>
-          </div>
+            )}
+          </>
         )}
       </div>
     </div>

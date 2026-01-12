@@ -1,7 +1,5 @@
 package com.vestshop.controller;
 
-import java.util.List;
-
 import com.vestshop.models.ProductModel;
 import com.vestshop.services.ProductService;
 
@@ -19,18 +17,28 @@ public class ProductController {
 
     // Lấy danh sách sản phẩm (public - không cần đăng nhập)
     @GetMapping
-    public ResponseEntity<List<ProductModel>> getAllProducts(
+    public ResponseEntity<?> getAllProducts(
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) Long minPrice,
-            @RequestParam(required = false) Long maxPrice,
-            @RequestParam(required = false) String status
+            @RequestParam(required = false) Integer minPrice,
+            @RequestParam(required = false) Integer maxPrice,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size
     ) {
+        // Nếu có page hoặc size, trả về paginated response với filter
+        if (page != null || size != null) {
+            int pageNum = page != null ? page : 0;
+            int pageSize = size != null ? size : 8;
+            return ResponseEntity.ok(productService.getAllProductsPaginated(pageNum, pageSize, category, minPrice, maxPrice, sortBy));
+        }
+        // Nếu không có pagination params, trả về list như cũ (backward compatible)
         return ResponseEntity.ok(productService.getAllProducts());
     }
 
     // Lấy chi tiết sản phẩm theo ID (public - không cần đăng nhập)
     @GetMapping("/{id}")
-    public ResponseEntity<ProductModel> getProductById(@PathVariable Long id) {
+    public ResponseEntity<ProductModel> getProductById(@PathVariable Integer id) {
         ProductModel product = productService.getProductById(id);
         if (product == null) {
             return ResponseEntity.notFound().build();

@@ -11,6 +11,7 @@ public class VestShopApplication {
         System.out.println("\n========================================");
         System.out.println("Vest Shop Backend is running!");
         System.out.println("API: http://localhost:9090");
+        System.out.println("========================================");
     }
 }
 

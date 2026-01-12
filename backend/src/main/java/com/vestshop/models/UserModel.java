@@ -35,10 +35,6 @@ public class UserModel {
     private String refreshToken;
     private String refExpires;
     
-    /**
-     * Tính tuổi từ ngày sinh
-     * @return Tuổi hiện tại, hoặc null nếu không có ngày sinh
-     */
     public Integer getAge() {
         return AgeUtils.calculateAge(this.birth);
     }

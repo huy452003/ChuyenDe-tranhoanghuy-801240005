@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { adminProductAPI } from '../../services/api'
+import Pagination from '../../components/Pagination'
 
 function ProductList() {
   const [products, setProducts] = useState([])
@@ -9,72 +10,85 @@ function ProductList() {
   const [priceFilter, setPriceFilter] = useState({ min: '', max: '' })
   const [sortBy, setSortBy] = useState('name')
   const [sortOrder, setSortOrder] = useState('asc')
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalElements, setTotalElements] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const pageSize = 10
+  
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [searchTerm, statusFilter, priceFilter.min, priceFilter.max, sortBy, sortOrder]);
 
   useEffect(() => {
     loadProducts();
-  }, []);
+  }, [currentPage, searchTerm, statusFilter, priceFilter.min, priceFilter.max, sortBy, sortOrder]);
 
   const loadProducts = async () => {
+    setLoading(true);
     try {
-      const response = await adminProductAPI.getAll();
-      setProducts(response.data || []);
+      // Build filter params
+      const filters = {
+        searchTerm: searchTerm,
+        status: statusFilter,
+        sortBy: sortBy,
+        sortOrder: sortOrder
+      };
+
+      // Convert price filter to minPrice/maxPrice
+      if (priceFilter.min && priceFilter.min.trim() !== '') {
+        const minPrice = parseInt(priceFilter.min.replace(/\./g, ''));
+        if (!isNaN(minPrice)) {
+          filters.minPrice = minPrice;
+        }
+      }
+      if (priceFilter.max && priceFilter.max.trim() !== '') {
+        const maxPrice = parseInt(priceFilter.max.replace(/\./g, ''));
+        if (!isNaN(maxPrice)) {
+          filters.maxPrice = maxPrice;
+        }
+      }
+
+      const response = await adminProductAPI.getAllPaginated(currentPage, pageSize, filters);
+      
+      // Check if response has pagination info (PageResponse)
+      if (response.data && response.data.content) {
+        // Paginated response
+        const data = response.data.content || [];
+        setProducts(data);
+        setTotalPages(response.data.totalPages || 1);
+        setTotalElements(response.data.totalElements || 0);
+      } else {
+        // Fallback: non-paginated response (backward compatible)
+        const data = response.data || [];
+        setProducts(data);
+        setTotalPages(Math.ceil(data.length / pageSize));
+        setTotalElements(data.length);
+      }
     } catch (error) {
       console.error('Error loading products:', error);
       setProducts([]);
+      setTotalPages(1);
+      setTotalElements(0);
+    } finally {
+      setLoading(false);
     }
   };
-
-  const filteredProducts = products
-    .filter(product => {
-      // Filter by search term
-      const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false
-      
-      // Filter by status
-      const matchesStatus = statusFilter === 'all' || product.status === statusFilter
-      
-      // Filter by price range
-      const productPrice = product.salePrice || product.price || 0
-      const matchesMinPrice = !priceFilter.min || productPrice >= parseInt(priceFilter.min.replace(/\./g, ''))
-      const matchesMaxPrice = !priceFilter.max || productPrice <= parseInt(priceFilter.max.replace(/\./g, ''))
-      
-      return matchesSearch && matchesStatus && matchesMinPrice && matchesMaxPrice
-    })
-    .sort((a, b) => {
-      let aValue, bValue
-      
-      switch (sortBy) {
-        case 'name':
-          aValue = a.name?.toLowerCase() || ''
-          bValue = b.name?.toLowerCase() || ''
-          break
-        case 'price':
-          aValue = a.salePrice || a.price || 0
-          bValue = b.salePrice || b.price || 0
-          break
-        case 'stock':
-          aValue = a.stock || 0
-          bValue = b.stock || 0
-          break
-        case 'status':
-          aValue = a.status || ''
-          bValue = b.status || ''
-          break
-        default:
-          return 0
-      }
-      
-      if (sortOrder === 'asc') {
-        return aValue > bValue ? 1 : aValue < bValue ? -1 : 0
-      } else {
-        return aValue < bValue ? 1 : aValue > bValue ? -1 : 0
-      }
-    })
+  
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleDelete = async (id) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
       try {
         await adminProductAPI.delete(id);
-        setProducts(products.filter(p => p.id !== id));
+        // Reload products to update pagination
+        await loadProducts();
         alert('Đã xóa sản phẩm!');
       } catch (error) {
         console.error('Error deleting product:', error);
@@ -205,59 +219,67 @@ function ProductList() {
       </div>
 
       {/* Products Table */}
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-vest-gold mx-auto"></div>
+          <p className="mt-4 text-gray-600">Đang tải sản phẩm...</p>
+        </div>
+      ) : (
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[800px]">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Sản phẩm</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Danh mục</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Giá</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Tồn kho</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Trạng thái</th>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-gray-600">Thao tác</th>
+                <th className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-gray-600 min-w-[250px]">Sản phẩm</th>
+                <th className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-gray-600 whitespace-nowrap">Danh mục</th>
+                <th className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-gray-600 whitespace-nowrap min-w-[120px]">Giá</th>
+                <th className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-gray-600 whitespace-nowrap">Tồn kho</th>
+                <th className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-gray-600 whitespace-nowrap min-w-[100px]">Trạng thái</th>
+                <th className="px-4 md:px-6 py-4 text-right text-sm font-semibold text-gray-600 whitespace-nowrap">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filteredProducts.map((product) => (
+              {products.map((product) => (
                 <tr key={product.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-3">
+                  <td className="px-4 md:px-6 py-4">
+                    <div className="flex items-center space-x-3 min-w-0">
                       <img
                         src={product.images?.[0] || 'https://via.placeholder.com/200'}
                         alt={product.name}
-                        className="w-16 h-20 object-cover rounded"
+                        className="w-16 h-20 object-cover rounded flex-shrink-0"
                       />
-                      <span className="font-medium">{product.name}</span>
+                      <span className="font-medium truncate">{product.name}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="text-vest-gold text-sm">{product.category}</span>
+                  <td className="px-4 md:px-6 py-4">
+                    <span className="text-vest-gold text-sm whitespace-nowrap">{product.category}</span>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
+                  <td className="px-4 md:px-6 py-4">
+                    <div className="flex flex-col whitespace-nowrap">
                       {product.salePrice && product.salePrice < product.price ? (
                         <>
-                          <span className="font-semibold text-red-600">
-                            {product.salePrice.toLocaleString('vi-VN')} ₫
+                          <span className="font-semibold text-red-600 text-sm leading-tight">
+                            {product.salePrice.toLocaleString('vi-VN')}<span className="text-xs ml-0.5">₫</span>
                           </span>
-                          <span className="text-sm text-gray-500 line-through">
-                            {product.price.toLocaleString('vi-VN')} ₫
+                          <span className="text-xs text-gray-500 line-through leading-tight">
+                            {product.price.toLocaleString('vi-VN')}<span className="text-xs ml-0.5">₫</span>
                           </span>
                         </>
                       ) : (
-                        <span className="font-semibold">{product.price?.toLocaleString('vi-VN') || '0'} ₫</span>
+                        <span className="font-semibold text-sm leading-tight">
+                          {product.price?.toLocaleString('vi-VN') || '0'}<span className="text-xs ml-0.5">₫</span>
+                        </span>
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className={product.stock === 0 ? 'text-red-600 font-semibold' : ''}>
+                  <td className="px-4 md:px-6 py-4">
+                    <span className={`whitespace-nowrap ${product.stock === 0 ? 'text-red-600 font-semibold' : ''}`}>
                       {product.stock}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 md:px-6 py-4">
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      className={`inline-block px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
                         product.status === 'ACTIVE'
                           ? 'bg-green-100 text-green-800'
                           : product.status === 'OUT_OF_STOCK'
@@ -270,8 +292,8 @@ function ProductList() {
                       {product.status === 'HIDDEN' && 'Ẩn'}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-end space-x-2">
+                  <td className="px-4 md:px-6 py-4">
+                    <div className="flex items-center justify-end space-x-2 whitespace-nowrap">
                       <Link
                         to={`/admin/products/edit/${product.id}`}
                         className="text-blue-600 hover:text-blue-800 p-2 rounded hover:bg-blue-50"
@@ -298,12 +320,37 @@ function ProductList() {
           </table>
         </div>
 
-        {filteredProducts.length === 0 && (
+        {products.length === 0 && !loading && (
           <div className="text-center py-12">
             <p className="text-gray-500">Không tìm thấy sản phẩm nào</p>
           </div>
         )}
       </div>
+      )}
+      
+      {/* Pagination */}
+      {!loading && totalElements > 0 && (
+        <div className="mt-8">
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          )}
+          <div className="text-center mt-4 text-sm text-gray-500 bg-gray-50 rounded-lg py-3 px-4">
+            <span className="font-medium text-gray-700">
+              Hiển thị {currentPage * pageSize + 1} - {Math.min((currentPage + 1) * pageSize, totalElements)}
+            </span>
+            <span className="text-gray-500"> trong tổng số </span>
+            <span className="font-semibold text-vest-dark">{totalElements}</span>
+            <span className="text-gray-500"> sản phẩm</span>
+            {totalPages > 1 && (
+              <span className="text-gray-500"> (Trang {currentPage + 1}/{totalPages})</span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

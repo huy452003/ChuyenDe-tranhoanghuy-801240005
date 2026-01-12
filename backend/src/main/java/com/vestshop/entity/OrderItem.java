@@ -19,7 +19,7 @@ public class OrderItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false)
@@ -40,6 +40,6 @@ public class OrderItem {
 
     @NotNull(message = "Giá không được để trống")
     @Column(nullable = false)
-    private Long price;
+    private Integer price;
 }
 

@@ -12,11 +12,11 @@ import jakarta.validation.constraints.Size;
 @NoArgsConstructor
 @AllArgsConstructor
 public class OrderItemModel {
-    private Long id;
+    private Integer id;
     
     @NotNull(message = "mã sản phẩm không được để trống")
     @Positive(message = "mã sản phẩm phải lớn hơn 0")
-    private Long productId;
+    private Integer productId;
     
     @NotBlank(message = "tên sản phẩm không được để trống")
     @Size(max = 200, message = "tên sản phẩm chỉ được có tối đa 200 ký tự")
@@ -32,6 +32,6 @@ public class OrderItemModel {
     
     @NotNull(message = "giá không được để trống")
     @Positive(message = "giá phải lớn hơn 0")
-    private Long price;
+    private Integer price;
 }
 

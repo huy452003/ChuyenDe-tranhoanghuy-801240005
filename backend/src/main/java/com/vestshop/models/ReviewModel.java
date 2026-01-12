@@ -15,19 +15,22 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ReviewModel {
-    private Long id;
+    private Integer id;
     
-    // productId không cần validate vì lấy từ path variable
-    private Long productId;
+    // Lấy productId từ path variable
+    private Integer productId;
     
-    private String productName; // Để hiển thị, không cần validate
+    // Hiển thị tên sản phẩm, không cần validate
+    private String productName; 
     
-    // userId không cần validate vì lấy từ token trong controller
-    private Long userId;
+    // Lấy userId từ token trong controller
+    private Integer userId;
     
-    private String userFullname; // Để hiển thị, không cần validate
+    // Hiển thị tên người dùng, không cần validate
+    private String userFullname; 
     
-    private String username; // Để hiển thị, không cần validate
+    // Hiển thị tên đăng nhập, không cần validate
+    private String username; 
     
     @NotNull(message = "Đánh giá sao không được để trống")
     @Min(value = 1, message = "Đánh giá sao phải từ 1 đến 5")

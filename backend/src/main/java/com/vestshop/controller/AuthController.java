@@ -25,18 +25,21 @@ public class AuthController {
     @Autowired
     private AuthService authService;
 
+    // Đăng ký user
     @PostMapping("/register")
     public ResponseEntity<UserModel> register(@Valid @RequestBody RegisterModel request){ 
         UserModel userModel = authService.register(request);
         return ResponseEntity.ok(userModel);
     }
 
+    // Đăng nhập user
     @PostMapping("/login")
     public ResponseEntity<UserModel> login(@Valid @RequestBody LoginModel request){
         UserModel userModel = authService.login(request);
         return ResponseEntity.ok(userModel);
     }
         
+    // Đăng xuất user
     @PostMapping("/logout")
     public ResponseEntity<Map<String, Object>> logout(@RequestHeader("Authorization") String authHeader){
         String token = authHeader.substring(7);
@@ -55,7 +58,7 @@ public class AuthController {
         return ResponseEntity.ok(user);
     }
 
-    // Update role, username, password, status - chỉ cho ADMIN
+    // Cập nhật role, username, password, status - chỉ cho ADMIN
     @PutMapping("/users/{userId}/admin-update")
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional(rollbackFor = Exception.class)
@@ -73,6 +76,7 @@ public class AuthController {
         return ResponseEntity.ok(updatedUser);
     }
 
+    // Cập nhật thông tin user
     @PutMapping("/users/{userId}/user-update")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     @Transactional(rollbackFor = Exception.class)

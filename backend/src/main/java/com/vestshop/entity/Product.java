@@ -25,7 +25,7 @@ public class Product {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
     @NotBlank(message = "Tên sản phẩm không được để trống")
     @Column(nullable = false)
@@ -34,11 +34,11 @@ public class Product {
     @NotNull(message = "Giá không được để trống")
     @Min(value = 0, message = "Giá phải lớn hơn 0")
     @Column(nullable = false)
-    private Long price;
+    private Integer price;
 
     @Min(value = 0, message = "Giá giảm phải lớn hơn hoặc bằng 0")
     @Column(name = "sale_price")
-    private Long salePrice; // Giá sau khi giảm (null = không giảm giá)
+    private Integer salePrice; // Giá sau khi giảm (null = không giảm giá)
 
     @NotBlank(message = "Danh mục không được để trống")
     @Column(nullable = false)

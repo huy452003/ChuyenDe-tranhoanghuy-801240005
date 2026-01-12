@@ -20,6 +20,7 @@ public class ContactController {
     @Autowired
     private ContactService contactService;
 
+    // Tạo tin nhắn liên hệ
     @PostMapping("/messages")
     public ResponseEntity<ContactMessageModel> createContactMessage(
             @Valid @RequestBody CreateContactMessageModel createModel) {

@@ -26,7 +26,7 @@ public class Order {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
     @NotBlank(message = "Họ tên không được để trống")
     @Column(nullable = false)
@@ -59,7 +59,7 @@ public class Order {
 
     @NotNull(message = "Tổng tiền không được để trống")
     @Column(nullable = false)
-    private Long totalAmount;
+    private Integer totalAmount;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

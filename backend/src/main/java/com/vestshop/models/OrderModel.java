@@ -20,7 +20,7 @@ import jakarta.validation.Valid;
 @NoArgsConstructor
 @AllArgsConstructor
 public class OrderModel {
-    private Long id;
+    private Integer id;
     
     @NotBlank(message = "họ và tên không được để trống")
     @Size(max = 100, message = "họ và tên chỉ được có tối đa 100 ký tự")
@@ -56,7 +56,7 @@ public class OrderModel {
     
     @NotNull(message = "tổng tiền không được để trống")
     @Positive(message = "tổng tiền phải lớn hơn 0")
-    private Long totalAmount;
+    private Integer totalAmount;
     
     @NotNull(message = "phương thức thanh toán không được để trống")
     private PaymentMethod paymentMethod;

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { adminReviewAPI } from '../../services/api';
 import RatingDisplay from '../../components/RatingDisplay';
+import Pagination from '../../components/Pagination';
 
 const ReviewList = () => {
   const [reviews, setReviews] = useState([]);
@@ -11,10 +12,23 @@ const ReviewList = () => {
     productId: '',
     userId: ''
   });
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const pageSize = 10;
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    if (currentPage !== 0) {
+      setCurrentPage(0);
+    }
+  }, [filters.status, filters.productId, filters.userId]);
 
   useEffect(() => {
     loadReviews();
-  }, [filters]);
+  }, [filters, currentPage]);
 
   const loadReviews = async () => {
     try {
@@ -22,24 +36,53 @@ const ReviewList = () => {
       setError('');
       
       const params = {};
-      if (filters.status !== 'ALL') {
+      if (filters.status && filters.status !== 'ALL') {
         params.status = filters.status;
       }
-      if (filters.productId) {
-        params.productId = filters.productId;
+      if (filters.productId && filters.productId.trim() !== '') {
+        const productIdNum = parseInt(filters.productId);
+        if (!isNaN(productIdNum)) {
+          params.productId = productIdNum;
+        }
       }
-      if (filters.userId) {
-        params.userId = filters.userId;
+      if (filters.userId && filters.userId.trim() !== '') {
+        const userIdNum = parseInt(filters.userId);
+        if (!isNaN(userIdNum)) {
+          params.userId = userIdNum;
+        }
       }
 
-      const response = await adminReviewAPI.getAll(params);
-      setReviews(response.data || []);
+      // Use pagination API
+      const response = await adminReviewAPI.getAllPaginated(currentPage, pageSize, params);
+      
+      // Check if response has pagination info (PageResponse)
+      if (response.data && response.data.content) {
+        // Paginated response
+        const data = response.data.content || [];
+        setReviews(data);
+        setTotalPages(response.data.totalPages || 1);
+        setTotalElements(response.data.totalElements || 0);
+      } else {
+        // Fallback: non-paginated response (backward compatible)
+        const data = response.data || [];
+        setReviews(data);
+        setTotalPages(Math.ceil(data.length / pageSize));
+        setTotalElements(data.length);
+      }
     } catch (err) {
       console.error('Error loading reviews:', err);
       setError(err.response?.data?.message || 'Không thể tải danh sách đánh giá');
+      setReviews([]);
+      setTotalPages(1);
+      setTotalElements(0);
     } finally {
       setLoading(false);
     }
+  };
+  
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleStatusChange = async (reviewId, newStatus) => {
@@ -158,7 +201,7 @@ const ReviewList = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   ID
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px] max-w-[250px]">
                   Sản phẩm
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -194,11 +237,11 @@ const ReviewList = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       #{review.id}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-gray-900 max-w-[250px] truncate" title={review.productName || `Sản phẩm #${review.productId}`}>
                         {review.productName || `Sản phẩm #${review.productId}`}
                       </div>
-                      <div className="text-sm text-gray-500">ID: {review.productId}</div>
+                      <div className="text-xs text-gray-500">ID: {review.productId}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
@@ -266,10 +309,10 @@ const ReviewList = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
         <div className="bg-white p-4 rounded-lg shadow-md">
           <div className="text-sm text-gray-500">Tổng số đánh giá</div>
-          <div className="text-2xl font-bold text-vest-dark">{reviews.length}</div>
+          <div className="text-2xl font-bold text-vest-dark">{totalElements}</div>
         </div>
         <div className="bg-white p-4 rounded-lg shadow-md">
           <div className="text-sm text-gray-500">Đang hiển thị</div>
@@ -290,6 +333,25 @@ const ReviewList = () => {
           </div>
         </div>
       </div>
+      
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-8">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+          <div className="text-center mt-4 text-sm text-gray-500 bg-gray-50 rounded-lg py-3 px-4">
+            <span className="font-medium text-gray-700">
+              Hiển thị {currentPage * pageSize + 1} - {Math.min((currentPage + 1) * pageSize, totalElements)}
+            </span>
+            <span className="text-gray-500"> trong tổng số </span>
+            <span className="font-semibold text-vest-dark">{totalElements}</span>
+            <span className="text-gray-500"> đánh giá</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

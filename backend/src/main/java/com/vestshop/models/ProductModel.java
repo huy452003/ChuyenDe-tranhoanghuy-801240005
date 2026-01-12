@@ -18,7 +18,7 @@ import jakarta.validation.constraints.Size;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProductModel {
-    private Long id;
+    private Integer id;
     
     @NotBlank(message = "tên sản phẩm không được để trống")
     @Size(max = 200, message = "tên sản phẩm chỉ được có tối đa 200 ký tự")
@@ -26,10 +26,10 @@ public class ProductModel {
     
     @NotNull(message = "giá không được để trống")
     @Positive(message = "giá phải lớn hơn 0")
-    private Long price;
+    private Integer price;
     
     @PositiveOrZero(message = "giá giảm phải lớn hơn hoặc bằng 0")
-    private Long salePrice; // Giá giảm
+    private Integer salePrice; // Giá giảm
     
     @NotBlank(message = "danh mục không được để trống")
     @Size(max = 100, message = "danh mục chỉ được có tối đa 100 ký tự")
@@ -51,7 +51,7 @@ public class ProductModel {
     
     // Rating information (computed from reviews)
     private Double averageRating; // Rating trung bình (0.0 - 5.0)
-    private Long reviewCount; // Số lượng đánh giá
-    private Long completedOrderCount; // Số lượng đơn hàng đã thành công (lượt mua)
+    private Integer reviewCount; // Số lượng đánh giá
+    private Integer completedOrderCount; // Số lượng đơn hàng đã thành công (lượt mua)
 }
 

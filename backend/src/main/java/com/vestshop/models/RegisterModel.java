@@ -59,10 +59,6 @@ public class RegisterModel {
     @Size(min = 1, max = 255, message = "địa chỉ phải có từ 1 đến 255 ký tự")
     private String address;
 
-    /**
-     * Validate tuổi tối thiểu 16 tuổi
-     * @return true nếu tuổi >= 16, false nếu không
-     */
     @AssertTrue(message = "Bạn phải đủ 16 tuổi trở lên mới được đăng ký tài khoản")
     public boolean isAgeValid() {
         if (birth == null) {

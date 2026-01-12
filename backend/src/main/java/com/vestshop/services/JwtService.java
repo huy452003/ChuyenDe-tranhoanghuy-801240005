@@ -12,9 +12,7 @@ import org.springframework.stereotype.Service;
 import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.function.Function;
 
 @Service
@@ -27,7 +25,6 @@ public class JwtService {
                 .builder()
                 .claims(claims) // thêm custom claims vào token
                 .subject(userDetails.getUsername()) // thêm sub vào token , thường là userID/username 
-                .id(UUID.randomUUID().toString()) // Thêm JTI (JWT ID) vào token dùng cho blacklist
                 .issuedAt(new Date(System.currentTimeMillis())) // Thêm issuedAt (thời gian khởi tạo) vào token
                 .expiration(new Date(System.currentTimeMillis() + expiration)) // Thêm expiration (thời gian hết hạn) vào token
                 .signWith(getSecretKey()) // tạo signature với secret key để mã hóa token

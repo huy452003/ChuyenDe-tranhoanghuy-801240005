@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { authAPI } from '../../services/api'
 import { provinces, getDistricts, getWards } from '../../data/addressData'
 import { calculateAge } from '../../utils/ageUtils'
 
 function AdminProfile() {
-  const { user: authUser, updateUser } = useAuth()
+  const navigate = useNavigate()
+  const { user: authUser, updateUser, logout } = useAuth()
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
@@ -24,6 +26,14 @@ function AdminProfile() {
   const [availableWards, setAvailableWards] = useState([])
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [activeTab, setActiveTab] = useState('profile')
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  })
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordSuccess, setPasswordSuccess] = useState('')
 
   useEffect(() => {
     loadUserData()
@@ -214,10 +224,39 @@ function AdminProfile() {
     <div>
       <h1 className="text-3xl font-serif font-bold mb-8">Thông tin tài khoản</h1>
 
+      {/* Tabs */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="flex space-x-8">
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'profile'
+                ? 'border-vest-gold text-vest-gold'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Thông tin tài khoản
+          </button>
+          <button
+            onClick={() => setActiveTab('password')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'password'
+                ? 'border-vest-gold text-vest-gold'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Đổi mật khẩu
+          </button>
+        </nav>
+      </div>
+
       <div className="bg-white rounded-lg shadow-lg p-8 border border-gray-100">
         <div className="space-y-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-serif font-semibold text-vest-dark">Thông tin cá nhân</h2>
+          {/* Tab Content */}
+          {activeTab === 'profile' && (
+            <>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-serif font-semibold text-vest-dark">Thông tin cá nhân</h2>
             {!editing && (
               <button
                 onClick={() => setEditing(true)}
@@ -475,6 +514,171 @@ function AdminProfile() {
                 </button>
               </div>
             </form>
+          )}
+          </>
+          )}
+
+          {/* Đổi mật khẩu */}
+          {activeTab === 'password' && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-serif font-semibold text-vest-dark">Đổi mật khẩu</h2>
+              
+              {passwordSuccess && (
+                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md text-sm">
+                  {passwordSuccess}
+                </div>
+              )}
+
+              {passwordError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+                  {passwordError}
+                </div>
+              )}
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  setPasswordError('')
+                  setPasswordSuccess('')
+
+                  // Validate
+                  if (!passwordData.currentPassword || passwordData.currentPassword.trim() === '') {
+                    setPasswordError('Vui lòng nhập mật khẩu hiện tại')
+                    return
+                  }
+
+                  if (!passwordData.newPassword || passwordData.newPassword.length < 6) {
+                    setPasswordError('Mật khẩu mới phải có ít nhất 6 ký tự')
+                    return
+                  }
+
+                  if (passwordData.newPassword !== passwordData.confirmPassword) {
+                    setPasswordError('Mật khẩu xác nhận không khớp')
+                    return
+                  }
+
+                  // Kiểm tra mật khẩu mới không được giống mật khẩu cũ
+                  if (passwordData.newPassword === passwordData.currentPassword) {
+                    setPasswordError('Mật khẩu mới không được giống mật khẩu cũ')
+                    return
+                  }
+
+                  try {
+                    // Format birth date từ "YYYY-MM-DD" sang "DD-MM-YYYY" nếu có
+                    let formattedBirth = user.birth
+                    if (formattedBirth) {
+                      // Nếu là string format "YYYY-MM-DD", convert sang "DD-MM-YYYY"
+                      if (typeof formattedBirth === 'string' && formattedBirth.includes('-')) {
+                        const parts = formattedBirth.split('-')
+                        if (parts.length === 3 && parts[0].length === 4) {
+                          // Format: YYYY-MM-DD -> DD-MM-YYYY
+                          formattedBirth = `${parts[2]}-${parts[1]}-${parts[0]}`
+                        }
+                      }
+                    }
+
+                    const updateData = {
+                      userId: user.userId,
+                      fullname: user.fullname,
+                      email: user.email,
+                      phone: user.phone,
+                      gender: user.gender,
+                      birth: formattedBirth,
+                      address: user.address,
+                      password: passwordData.newPassword,
+                      currentPassword: passwordData.currentPassword
+                    }
+
+                    await authAPI.userUpdateSelf(user.userId, updateData)
+                    
+                    setPasswordSuccess('Đổi mật khẩu thành công! Vui lòng đăng nhập lại.')
+                    
+                    // Logout và redirect sau 2 giây
+                    setTimeout(async () => {
+                      await logout()
+                      navigate('/')
+                    }, 2000)
+                  } catch (error) {
+                    setPasswordError(error.response?.data?.message || 'Có lỗi xảy ra khi đổi mật khẩu')
+                  }
+                }}
+                className="space-y-6 max-w-2xl"
+              >
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Mật khẩu hiện tại <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={passwordData.currentPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-vest-gold focus:border-vest-gold transition-all"
+                    placeholder="Nhập mật khẩu hiện tại"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Mật khẩu mới <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={passwordData.newPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-vest-gold focus:border-vest-gold transition-all"
+                    placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Xác nhận mật khẩu mới <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-vest-gold focus:border-vest-gold transition-all"
+                    placeholder="Nhập lại mật khẩu mới"
+                  />
+                </div>
+
+                <div className="flex space-x-4 pt-4">
+                  <button
+                    type="submit"
+                    className="flex items-center space-x-2 px-6 py-3 bg-vest-dark text-white rounded-lg hover:bg-vest-gold transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Đổi mật khẩu</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPasswordData({
+                        currentPassword: '',
+                        newPassword: '',
+                        confirmPassword: ''
+                      })
+                      setPasswordError('')
+                      setPasswordSuccess('')
+                    }}
+                    className="flex items-center space-x-2 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all shadow-sm hover:shadow-md"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <span>Hủy</span>
+                  </button>
+                </div>
+              </form>
+            </div>
           )}
         </div>
       </div>

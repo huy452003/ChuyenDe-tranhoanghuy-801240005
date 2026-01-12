@@ -1,28 +1,83 @@
 import { useState, useEffect } from 'react'
 import { adminContactAPI } from '../../services/api'
+import Pagination from '../../components/Pagination'
 
 function ContactMessages() {
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedMessage, setSelectedMessage] = useState(null)
   const [unreadCount, setUnreadCount] = useState(0)
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalElements, setTotalElements] = useState(0)
+  const pageSize = 10
+  
+  // Debug: Log pagination state changes
+  useEffect(() => {
+    console.log('ContactMessages - Pagination State:', {
+      currentPage,
+      totalPages,
+      totalElements,
+      shouldShowPagination: totalPages > 1
+    });
+  }, [currentPage, totalPages, totalElements]);
 
   useEffect(() => {
     loadMessages()
     loadUnreadCount()
-  }, [])
+  }, [currentPage])
 
   const loadMessages = async () => {
     try {
       setLoading(true)
-      const response = await adminContactAPI.getAll()
-      setMessages(response.data || [])
+      const response = await adminContactAPI.getAllPaginated(currentPage, pageSize)
+      console.log('ContactMessages - Full Response:', response);
+      console.log('ContactMessages - Response Data:', response.data);
+      
+      // Check if response has pagination info (PageResponse)
+      if (response.data && response.data.content) {
+        // Paginated response
+        const data = response.data.content || [];
+        const totalPagesValue = response.data.totalPages || 1;
+        const totalElementsValue = response.data.totalElements || 0;
+        
+        console.log('ContactMessages - Pagination Info:', {
+          currentPage,
+          totalPages: totalPagesValue,
+          totalElements: totalElementsValue,
+          dataLength: data.length
+        });
+        
+        setMessages(data);
+        setTotalPages(totalPagesValue);
+        setTotalElements(totalElementsValue);
+      } else {
+        // Fallback: non-paginated response (backward compatible)
+        const data = response.data || [];
+        const calculatedPages = Math.ceil(data.length / pageSize);
+        console.log('ContactMessages - Fallback (non-paginated):', {
+          dataLength: data.length,
+          calculatedPages
+        });
+        setMessages(data);
+        setTotalPages(calculatedPages);
+        setTotalElements(data.length);
+      }
     } catch (error) {
       console.error('Error loading messages:', error)
       setMessages([])
+      setTotalPages(1)
+      setTotalElements(0)
     } finally {
       setLoading(false)
     }
+  }
+  
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const loadUnreadCount = async () => {
@@ -223,6 +278,30 @@ function ContactMessages() {
               <div className="bg-white rounded-lg shadow-md p-12 text-center">
                 <p className="text-gray-500">Chọn một tin nhắn để xem chi tiết</p>
               </div>
+            )}
+          </div>
+        </div>
+      )}
+      
+      {/* Pagination */}
+      {!loading && totalElements > 0 && (
+        <div className="mt-8">
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          )}
+          <div className="text-center mt-4 text-sm text-gray-500 bg-gray-50 rounded-lg py-3 px-4">
+            <span className="font-medium text-gray-700">
+              Hiển thị {currentPage * pageSize + 1} - {Math.min((currentPage + 1) * pageSize, totalElements)}
+            </span>
+            <span className="text-gray-500"> trong tổng số </span>
+            <span className="font-semibold text-vest-dark">{totalElements}</span>
+            <span className="text-gray-500"> tin nhắn</span>
+            {totalPages > 1 && (
+              <span className="text-gray-500"> (Trang {currentPage + 1}/{totalPages})</span>
             )}
           </div>
         </div>

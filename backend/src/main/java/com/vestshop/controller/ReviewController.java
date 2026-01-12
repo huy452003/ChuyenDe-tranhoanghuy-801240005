@@ -29,7 +29,7 @@ public class ReviewController {
 
     // Lấy danh sách đánh giá của sản phẩm (chỉ ACTIVE)
     @GetMapping
-    public ResponseEntity<List<ReviewModel>> getProductReviews(@PathVariable Long productId) {
+    public ResponseEntity<List<ReviewModel>> getProductReviews(@PathVariable Integer productId) {
         try {
             List<ReviewModel> reviews = reviewService.getProductReviews(productId);
             return ResponseEntity.ok(reviews);
@@ -42,7 +42,7 @@ public class ReviewController {
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<?> createReview(
-            @PathVariable Long productId,
+            @PathVariable Integer productId,
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @Valid @RequestBody ReviewModel reviewModel) {
         try {
@@ -62,7 +62,7 @@ public class ReviewController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("User not found: " + username);
             }
-            Long userId = currentUser.getUserId().longValue();
+            Integer userId = currentUser.getUserId();
             
             // Kiểm tra user đã đánh giá chưa
             if (reviewService.hasUserReviewed(productId, userId)) {
@@ -88,8 +88,8 @@ public class ReviewController {
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     @PutMapping("/{reviewId}")
     public ResponseEntity<?> updateReview(
-            @PathVariable Long productId,
-            @PathVariable Long reviewId,
+            @PathVariable Integer productId,
+            @PathVariable Integer reviewId,
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @Valid @RequestBody ReviewModel reviewModel) {
         try {
@@ -109,7 +109,7 @@ public class ReviewController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("User not found: " + username);
             }
-            Long userId = currentUser.getUserId().longValue();
+            Integer userId = currentUser.getUserId();
             
             ReviewModel updatedReview = reviewService.updateReview(reviewId, userId, reviewModel);
             return ResponseEntity.ok(updatedReview);
@@ -128,8 +128,8 @@ public class ReviewController {
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     @DeleteMapping("/{reviewId}")
     public ResponseEntity<?> deleteReview(
-            @PathVariable Long productId,
-            @PathVariable Long reviewId,
+            @PathVariable Integer productId,
+            @PathVariable Integer reviewId,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
             // Lấy user ID từ token
@@ -148,7 +148,7 @@ public class ReviewController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("User not found: " + username);
             }
-            Long userId = currentUser.getUserId().longValue();
+            Integer userId = currentUser.getUserId();
             
             reviewService.deleteReview(reviewId, userId);
             return ResponseEntity.ok().build();
@@ -166,7 +166,7 @@ public class ReviewController {
     // Kiểm tra user đã đánh giá sản phẩm chưa
     @GetMapping("/check")
     public ResponseEntity<Map<String, Object>> checkUserReviewed(
-            @PathVariable Long productId,
+            @PathVariable Integer productId,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
         Map<String, Object> response = new HashMap<>();
         
@@ -197,7 +197,7 @@ public class ReviewController {
                 return ResponseEntity.ok(response);
             }
             
-            Long userId = currentUser.getUserId().longValue();
+            Integer userId = currentUser.getUserId();
             boolean hasReviewed = reviewService.hasUserReviewed(productId, userId);
             response.put("hasReviewed", hasReviewed);
             
